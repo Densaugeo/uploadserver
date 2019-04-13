@@ -20,8 +20,6 @@ def send_upload_page(handler):
 def receive_upload(handler):
     form = cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
     
-    print(form)
-    
     if 'file_1' in form and form['file_1'].file and form['file_1'].filename:
         with open(pathlib.Path.cwd() / form['file_1'].filename, 'wb') as f:
             f.write(form['file_1'].file.read())
