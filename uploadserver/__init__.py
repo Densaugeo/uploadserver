@@ -21,7 +21,7 @@ def receive_upload(handler):
     form = cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
     
     if 'file_1' in form and form['file_1'].file and form['file_1'].filename:
-        with open(pathlib.Path.cwd() / form['file_1'].filename, 'wb') as f:
+        with open(pathlib.Path.cwd() / pathlib.Path(form['file_1'].filename).name, 'wb') as f:
             f.write(form['file_1'].file.read())
 
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
