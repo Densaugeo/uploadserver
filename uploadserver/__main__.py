@@ -32,9 +32,15 @@ if __name__ == '__main__':
     else:
         handler_class = uploadserver.SimpleHTTPRequestHandler
     
+    print('File upload available at /upload')
+    
     # This was added to http.server's main section in Python 3.8
     if sys.version_info.major <= 3 and sys.version_info.minor < 8:
-        server_class = http.server.ThreadingHTTPServer
+        http.server.test(
+            HandlerClass=handler_class,
+            port=args.port,
+            bind=args.bind,
+        )
     else:
         class DualStackServer(http.server.ThreadingHTTPServer):
             def server_bind(self):
@@ -43,12 +49,10 @@ if __name__ == '__main__':
                     self.socket.setsockopt(
                         socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
                 return super().server_bind()
-        server_class = DualStackServer
-    
-    print('File upload available at /upload')
-    http.server.test(
-        HandlerClass=handler_class,
-        ServerClass=server_class,
-        port=args.port,
-        bind=args.bind,
-    )
+        
+        http.server.test(
+            HandlerClass=handler_class,
+            ServerClass=DualStackServer,
+            port=args.port,
+            bind=args.bind,
+        )
