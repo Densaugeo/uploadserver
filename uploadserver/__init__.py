@@ -1,11 +1,26 @@
 import http.server, cgi, pathlib
 
 upload_page = bytes('''<!DOCTYPE html>
-<html><head><title>File Upload</title>
-</head><body><h1>File Upload</h1>
+<html>
+<head>
+<title>File Upload</title>
+<meta name="viewport" content="width=device-width, user-scalable=no" />
+<style type="text/css">
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #000;
+    color: #fff;
+  }
+}
+</style>
+</head>
+<body>
+<h1>File Upload</h1>
 <form action="upload" method="POST" enctype="multipart/form-data">
-File name: <input name="file_1" type="file"><br>
-<input type="submit">
+<input name="file_1" type="file" />
+<br />
+<br />
+<input type="submit" />
 </form>
 </body>
 </html>''', 'utf-8')
