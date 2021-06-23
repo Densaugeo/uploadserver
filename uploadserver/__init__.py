@@ -1,5 +1,7 @@
 import http.server, cgi, pathlib
 
+
+TOKEN = ''
 upload_page = bytes('''<!DOCTYPE html>
 <html>
 <head>
@@ -34,10 +36,16 @@ def send_upload_page(handler):
 
 def receive_upload(handler):
     form = cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
-    
+    if TOKEN:
+        # server started with token.
+        if 'token' not in form or form['token'].value != TOKEN:
+            # no token or token error
+            print('token error')
+            return -1
     if 'file_1' in form and form['file_1'].file and form['file_1'].filename:
         with open(pathlib.Path.cwd() / pathlib.Path(form['file_1'].filename).name, 'wb') as f:
             f.write(form['file_1'].file.read())
+            return 0
 
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
