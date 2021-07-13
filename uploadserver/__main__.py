@@ -19,7 +19,7 @@ if __name__ == '__main__':
         help='Specify alternate bind address [default: all interfaces]')
     parser.add_argument('port', action='store', default=8000, type=int, nargs='?',
         help='Specify alternate port [default: 8000]')
-    parser.add_argument('-t', '-token', action='store', default='', type=str, nargs='?',
+    parser.add_argument('--token', '-t', action='store', default='', type=str, nargs='?',
         help='Specify alternate token [default: \'\']')
 
     # Directory option was added to http.server in Python 3.7
@@ -28,7 +28,7 @@ if __name__ == '__main__':
             help='Specify alternative directory [default:current directory]')
     args = parser.parse_args()
 
-    uploadserver.TOKEN = args.t
+    uploadserver.TOKEN = args.token
     if args.cgi:
         handler_class = uploadserver.CGIHTTPRequestHandler
     elif sys.version_info.major >= 3 and sys.version_info.minor >= 7:
