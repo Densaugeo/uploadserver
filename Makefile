@@ -18,4 +18,4 @@ upload: dist/*
 	$(PY) -m twine upload dist/*
 
 clean:
-	rm -rf build dist uploadserver/__pycache__ uploadserver.egg-info
+	rm -rf build dist uploadserver/__pycache__ uploadserver.egg-info __pycache__ test-temp
