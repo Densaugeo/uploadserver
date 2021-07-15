@@ -56,6 +56,7 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             retcode = receive_upload(self)
             if http.HTTPStatus.FORBIDDEN == retcode:
                 self.send_error(retcode, "Token is enabled on this server, and your token is error")
+                return
             send_upload_page(self)
         else: self.send_error(http.HTTPStatus.NOT_FOUND, "Can only POST to /upload")
 
@@ -69,5 +70,6 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
             retcode = receive_upload(self)
             if http.HTTPStatus.FORBIDDEN == retcode:
                 self.send_error(retcode, "Token is enabled on this server, and your token is error")
+                return
             send_upload_page(self)
         else: http.server.CGIHTTPRequestHandler.do_POST(self)
