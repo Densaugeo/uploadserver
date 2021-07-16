@@ -72,11 +72,52 @@ class Suite(unittest.TestCase):
         time.sleep(0.1)
         
         res = requests.post('http://localhost:8000/upload', files={
-            'file_1': ('../dt-name', 'dt-content')
+            'file_1': ('../dt-name', 'dt-content'),
         })
         
         with open('dt-name') as f: self.assertEqual(f.read(), 'dt-content')
         self.assertFalse(Path('../dt-name').exists())
+    
+    # Verify uploads are accepted when the toekn option is used and the correct token is supplied
+    def test_token_valid(self):
+        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver', '-t', 'a-token'])
+        time.sleep(0.1)
+        
+        # 'files' option is used for both files and other form data
+        res = requests.post('http://localhost:8000/upload', files={
+            'file_1': ('valid-token-upload', 'token-upload-content'),
+            'token': (None, 'a-token'),
+        })
+        self.assertEqual(res.status_code, 200)
+        
+        with open('valid-token-upload') as f: self.assertEqual(f.read(), 'token-upload-content')
+    
+    # Verify uploads are rejected when the toekn option is used and an incorrect token is supplied
+    def test_token_invalid(self):
+        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver', '-t', 'a-token'])
+        time.sleep(0.1)
+        
+        # 'files' option is used for both files and other form data
+        res = requests.post('http://localhost:8000/upload', files={
+            'file_1': ('invalid-token-upload', 'token-upload-content'),
+            'token': (None, 'a-bad-token'),
+        })
+        self.assertEqual(res.status_code, 403)
+        
+        self.assertFalse(Path('invalid-token-upload').exists())
+    
+    # Verify uploads are rejected when the toekn option is used and no token is supplied
+    def test_token_missing(self):
+        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver', '-t', 'a-token'])
+        time.sleep(0.1)
+        
+        # 'files' option is used for both files and other form data
+        res = requests.post('http://localhost:8000/upload', files={
+            'file_1': ('missing-token-upload', 'token-upload-content'),
+        })
+        self.assertEqual(res.status_code, 403)
+        
+        self.assertFalse(Path('missing-token-upload').exists())
     
     # Verify example curl command works
     def test_curl_example(self):
@@ -86,4 +127,14 @@ class Suite(unittest.TestCase):
         subprocess.run(['curl', '-X', 'POST', 'http://localhost:8000/upload', '-F', 'file_1=@../LICENSE'])
         
         with open('LICENSE') as f_actual, open('../LICENSE') as f_expected:
+                self.assertEqual(f_actual.read(), f_expected.read())
+    
+    # Verify example curl command with token works
+    def test_curl_token_example(self):
+        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver', '-t', 'helloworld'])
+        time.sleep(0.1)
+        
+        subprocess.run(['curl', '-X', 'POST', 'http://localhost:8000/upload', '-F', 'file_1=@../README.md', '-F', 'token=helloworld'])
+        
+        with open('README.md') as f_actual, open('../README.md') as f_expected:
                 self.assertEqual(f_actual.read(), f_expected.read())
