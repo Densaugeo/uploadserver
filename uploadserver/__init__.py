@@ -16,13 +16,16 @@ upload_page = bytes('''<!DOCTYPE html>
 }
 </style>
 </head>
-<body>
+<body onload="document.getElementsByName('token')[0].value=localStorage.token || ''">
 <h1>File Upload</h1>
 <form action="upload" method="POST" enctype="multipart/form-data">
 <input name="file_1" type="file" />
 <br />
 <br />
-<input type="submit" />
+Token (only needed if server was started with token option): <input name="token" type="text" />
+<br />
+<br />
+<input type="submit" onclick="localStorage.token = document.getElementsByName('token')[0].value" />
 </form>
 </body>
 </html>''', 'utf-8')
