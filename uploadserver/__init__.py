@@ -1,5 +1,7 @@
-import http.server, cgi, pathlib
+import http.server, http, cgi, pathlib
 
+
+TOKEN = ''
 upload_page = bytes('''<!DOCTYPE html>
 <html>
 <head>
@@ -34,10 +36,15 @@ def send_upload_page(handler):
 
 def receive_upload(handler):
     form = cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
-    
+    if TOKEN:
+        # server started with token.
+        if 'token' not in form or form['token'].value != TOKEN:
+            # no token or token error
+            return http.HTTPStatus.FORBIDDEN
     if 'file_1' in form and form['file_1'].file and form['file_1'].filename:
         with open(pathlib.Path.cwd() / pathlib.Path(form['file_1'].filename).name, 'wb') as f:
             f.write(form['file_1'].file.read())
+            return 0
 
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -46,7 +53,10 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     
     def do_POST(self):
         if self.path == '/upload':
-            receive_upload(self)
+            retcode = receive_upload(self)
+            if http.HTTPStatus.FORBIDDEN == retcode:
+                self.send_error(retcode, "Token is enabled on this server, and your token is error")
+                return
             send_upload_page(self)
         else: self.send_error(http.HTTPStatus.NOT_FOUND, "Can only POST to /upload")
 
@@ -57,6 +67,9 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
     
     def do_POST(self):
         if self.path == '/upload':
-            receive_upload(self)
+            retcode = receive_upload(self)
+            if http.HTTPStatus.FORBIDDEN == retcode:
+                self.send_error(retcode, "Token is enabled on this server, and your token is error")
+                return
             send_upload_page(self)
         else: http.server.CGIHTTPRequestHandler.do_POST(self)

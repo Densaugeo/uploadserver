@@ -24,6 +24,14 @@ After the server starts, the upload page is at /upload. For example, if the serv
 
 Warning: This is an upload server, and running it will allow uploads. Uploaded files will replace existing files with the same name.
 
+Run with a simple token.
+~~~
+python3 -m uploadserver -t helloworld
+~~~
+
+Now you can upload a file with token. For example:
+`curl http://127.0.0.1:8000/upload -F "file_1=@abc.txt" -F 'token=helloworld'`
+
 ## Credits
 
 Most of `uploadserver/__main__.py` was copied from Python's `http.server.main()`.
