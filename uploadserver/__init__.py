@@ -39,14 +39,22 @@ def send_upload_page(handler):
 
 def receive_upload(handler):
     form = cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
+    if 'file_1' in form and form['file_1'].file and form['file_1'].filename:
+        filename = pathlib.Path(form['file_1'].filename).name
+    else:
+        filename = None
+    
     if TOKEN:
         # server started with token.
         if 'token' not in form or form['token'].value != TOKEN:
             # no token or token error
+            handler.log_message('Upload of "{}" rejected (bad token)'.format(filename))
             return http.HTTPStatus.FORBIDDEN
-    if 'file_1' in form and form['file_1'].file and form['file_1'].filename:
-        with open(pathlib.Path.cwd() / pathlib.Path(form['file_1'].filename).name, 'wb') as f:
+    
+    if filename:
+        with open(pathlib.Path.cwd() / filename, 'wb') as f:
             f.write(form['file_1'].file.read())
+            handler.log_message('Upload of "{}" accepted'.format(filename))
             return 0
 
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
