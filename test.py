@@ -66,6 +66,16 @@ class Suite(unittest.TestCase):
         
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content-replaced')
     
+    # Test a malformed upload
+    def test_upload_bad_field_name(self):
+        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver'])
+        time.sleep(0.1)
+        
+        res = requests.post('http://127.0.0.1:8000/upload', files={
+            'file_foo': ('a-file', 'file-content'),
+        })
+        self.assertEqual(res.status_code, 200)
+    
     # Verify directory traversal attempts are contained within server folder
     def test_directory_traversal(self):
         self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver'])
@@ -124,7 +134,8 @@ class Suite(unittest.TestCase):
         self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver'])
         time.sleep(0.1)
         
-        subprocess.run(['curl', '-X', 'POST', 'http://localhost:8000/upload', '-F', 'file_1=@../LICENSE'])
+        result = subprocess.run(['curl', '-X', 'POST', 'http://localhost:8000/upload', '-F', 'file_1=@../LICENSE'])
+        self.assertEqual(result.returncode, 0)
         
         with open('LICENSE') as f_actual, open('../LICENSE') as f_expected:
                 self.assertEqual(f_actual.read(), f_expected.read())
@@ -134,7 +145,8 @@ class Suite(unittest.TestCase):
         self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver', '-t', 'helloworld'])
         time.sleep(0.1)
         
-        subprocess.run(['curl', '-X', 'POST', 'http://localhost:8000/upload', '-F', 'file_1=@../README.md', '-F', 'token=helloworld'])
+        result = subprocess.run(['curl', '-X', 'POST', 'http://localhost:8000/upload', '-F', 'file_1=@../README.md', '-F', 'token=helloworld'])
+        self.assertEqual(result.returncode, 0)
         
         with open('README.md') as f_actual, open('../README.md') as f_expected:
                 self.assertEqual(f_actual.read(), f_expected.read())
