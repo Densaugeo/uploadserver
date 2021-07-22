@@ -8,14 +8,14 @@ ifneq ($(VERBOSE), 0)
 	PYTEST_ARGS:=$(PYTEST_ARGS) --capture no
 endif
 
-test-all:
+test-all: localhost.pem
 	./test-all.sh
 
 test: localhost.pem
 	rm -rf test-temp
 	. venv-$(PY)/bin/activate; PROTOCOL=$(PROTOCOL) VERBOSE=$(VERBOSE) $(PY) -u -m pytest $(PYTEST_ARGS) $(TEST)
 
-test-travis:
+test-travis: localhost.pem
 	rm -rf test-temp
 	PROTOCOL=HTTP VERBOSE=0 python -u -m pytest test.py
 	rm -rf test-temp
