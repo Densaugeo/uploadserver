@@ -36,7 +36,7 @@ class Suite(unittest.TestCase):
         
         res = self.get('/', port=8080)
         self.assertEqual(res.status_code, 200)
-        self.assertRaises(requests.ConnectionError, lambda: self.get('/'))
+        self.assertRaises(requests.ConnectionError, lambda: self.get('/', retries=0))
     
     # Verify /upload at least responds to GET
     def test_upload_page_exists(self):
@@ -169,20 +169,20 @@ class Suite(unittest.TestCase):
             stderr=None if VERBOSE else subprocess.DEVNULL,
         )
     
-    def get(self, path, port=8000, *args, **kwargs):
-        for i in range(10):
+    def get(self, path, port=8000, retries=10, *args, **kwargs):
+        for i in range(retries + 1):
             try:
                 return requests.get('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
             except Exception as e:
-                if i == 9: raise e
+                if i == retries: raise e
             
             time.sleep(0.1)
     
-    def post(self, path, port=8000, *args, **kwargs):
-        for i in range(10):
+    def post(self, path, port=8000, retries=10, *args, **kwargs):
+        for i in range(retries + 1):
             try:
                 return requests.post('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
             except Exception as e:
-                if i == 9: raise e
+                if i == retries: raise e
             
             time.sleep(0.1)
