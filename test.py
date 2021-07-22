@@ -1,5 +1,16 @@
-import os, requests, unittest, subprocess, time
+import os, requests, unittest, subprocess, time, urllib3
 from pathlib import Path
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+assert 'VERBOSE' in os.environ, '$VERBOSE envionment variable not set'
+VERBOSE = os.environ['VERBOSE']
+assert VERBOSE in ['0', '1'], '$VERBOSE must be 0 or 1'
+VERBOSE = int(VERBOSE)
+
+assert 'PROTOCOL' in os.environ, '$PROTOCOL envionment variable not set'
+PROTOCOL = os.environ['PROTOCOL']
+assert PROTOCOL in ['HTTP', 'HTTPS'], 'Unknown $PROTOCOL: {}'.format(PROTOCOL)
 
 def setUpModule():
     os.mkdir(Path(__file__).parent / 'test-temp')
@@ -15,35 +26,31 @@ class Suite(unittest.TestCase):
     
     # Verify a basic test can run. Most importantly, verify the sleep is long enough for the sever to start
     def test_basic(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver'])
-        time.sleep(0.1)
+        self.spawn_server()
         
-        res = requests.get('http://127.0.0.1:8000/')
+        res = self.get('/')
         self.assertEqual(res.status_code, 200)
     
     # Verify the --port argument is properly passed to the underlying http.server
     def test_argument_passthrough(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver', '8080'])
-        time.sleep(0.1)
+        self.spawn_server(['8080'])
         
-        res = requests.get('http://127.0.0.1:8080/')
+        res = self.get('/', port=8080)
         self.assertEqual(res.status_code, 200)
-        self.assertRaises(requests.ConnectionError, lambda: requests.get('http://127.0.0.1:8000/'))
+        self.assertRaises(requests.ConnectionError, lambda: self.get('/'))
     
     # Verify /upload at least responds to GET
     def test_upload_page_exists(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver'])
-        time.sleep(0.1)
+        self.spawn_server()
         
-        res = requests.get('http://127.0.0.1:8000/upload')
+        res = self.get('/upload')
         self.assertEqual(res.status_code, 200)
     
     # Simple upload test
     def test_upload(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver'])
-        time.sleep(0.1)
+        self.spawn_server()
         
-        res = requests.post('http://127.0.0.1:8000/upload', files={
+        res = self.post('/upload', files={
             'file_1': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 200)
@@ -52,14 +59,13 @@ class Suite(unittest.TestCase):
     
     # Verify uploads replace files of the same name
     def test_upload_same_name(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver'])
-        time.sleep(0.1)
+        self.spawn_server()
         
-        res = requests.post('http://127.0.0.1:8000/upload', files={
+        res = self.post('/upload', files={
             'file_1': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 200)
-        res = requests.post('http://127.0.0.1:8000/upload', files={
+        res = self.post('/upload', files={
             'file_1': ('a-file', 'file-content-replaced'),
         })
         self.assertEqual(res.status_code, 200)
@@ -68,20 +74,18 @@ class Suite(unittest.TestCase):
     
     # Test a malformed upload
     def test_upload_bad_field_name(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver'])
-        time.sleep(0.1)
+        self.spawn_server()
         
-        res = requests.post('http://127.0.0.1:8000/upload', files={
+        res = self.post('/upload', files={
             'file_foo': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 200)
     
     # Verify directory traversal attempts are contained within server folder
     def test_directory_traversal(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver'])
-        time.sleep(0.1)
+        self.spawn_server()
         
-        res = requests.post('http://localhost:8000/upload', files={
+        res = self.post('/upload', files={
             'file_1': ('../dt-name', 'dt-content'),
         })
         
@@ -90,11 +94,10 @@ class Suite(unittest.TestCase):
     
     # Verify uploads are accepted when the toekn option is used and the correct token is supplied
     def test_token_valid(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver', '-t', 'a-token'])
-        time.sleep(0.1)
+        self.spawn_server(['-t', 'a-token'])
         
         # 'files' option is used for both files and other form data
-        res = requests.post('http://localhost:8000/upload', files={
+        res = self.post('/upload', files={
             'file_1': ('valid-token-upload', 'token-upload-content'),
             'token': (None, 'a-token'),
         })
@@ -104,11 +107,10 @@ class Suite(unittest.TestCase):
     
     # Verify uploads are rejected when the toekn option is used and an incorrect token is supplied
     def test_token_invalid(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver', '-t', 'a-token'])
-        time.sleep(0.1)
+        self.spawn_server(['-t', 'a-token'])
         
         # 'files' option is used for both files and other form data
-        res = requests.post('http://localhost:8000/upload', files={
+        res = self.post('/upload', files={
             'file_1': ('invalid-token-upload', 'token-upload-content'),
             'token': (None, 'a-bad-token'),
         })
@@ -118,11 +120,10 @@ class Suite(unittest.TestCase):
     
     # Verify uploads are rejected when the toekn option is used and no token is supplied
     def test_token_missing(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver', '-t', 'a-token'])
-        time.sleep(0.1)
+        self.spawn_server(['-t', 'a-token'])
         
         # 'files' option is used for both files and other form data
-        res = requests.post('http://localhost:8000/upload', files={
+        res = self.post('/upload', files={
             'file_1': ('missing-token-upload', 'token-upload-content'),
         })
         self.assertEqual(res.status_code, 403)
@@ -131,10 +132,14 @@ class Suite(unittest.TestCase):
     
     # Verify example curl command works
     def test_curl_example(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver'])
-        time.sleep(0.1)
+        self.spawn_server()
         
-        result = subprocess.run(['curl', '-X', 'POST', 'http://localhost:8000/upload', '-F', 'file_1=@../LICENSE'])
+        result = subprocess.run(
+            ['curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()), '-k', '-F', 'file_1=@../LICENSE'],
+            stdout=None if VERBOSE else subprocess.DEVNULL,
+            stderr=None if VERBOSE else subprocess.DEVNULL,
+        )
+        
         self.assertEqual(result.returncode, 0)
         
         with open('LICENSE') as f_actual, open('../LICENSE') as f_expected:
@@ -142,11 +147,31 @@ class Suite(unittest.TestCase):
     
     # Verify example curl command with token works
     def test_curl_token_example(self):
-        self.server = subprocess.Popen(['python3', '-u', '-m', 'uploadserver', '-t', 'helloworld'])
-        time.sleep(0.1)
+        self.spawn_server(['-t', 'helloworld'])
         
-        result = subprocess.run(['curl', '-X', 'POST', 'http://localhost:8000/upload', '-F', 'file_1=@../README.md', '-F', 'token=helloworld'])
+        result = subprocess.run(
+            ['curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()), '-k', '-F', 'file_1=@../README.md', '-F', 'token=helloworld'],
+            stdout=None if VERBOSE else subprocess.DEVNULL,
+            stderr=None if VERBOSE else subprocess.DEVNULL,
+        )
         self.assertEqual(result.returncode, 0)
         
         with open('README.md') as f_actual, open('../README.md') as f_expected:
                 self.assertEqual(f_actual.read(), f_expected.read())
+    
+    def spawn_server(self, args=[]):
+        args = ['python3', '-u', '-m', 'uploadserver'] + args
+        if PROTOCOL == 'HTTPS': args += ['-c', '../localhost.pem']
+        self.server = subprocess.Popen(
+            args,
+            stdout=None if VERBOSE else subprocess.DEVNULL,
+            stderr=None if VERBOSE else subprocess.DEVNULL,
+        )
+        time.sleep(0.1)
+    
+    def get(self, path, port=8000, *args, **kwargs):
+        return requests.get('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
+    
+    def post(self, path, port=8000, *args, **kwargs):
+        return requests.post('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
+
