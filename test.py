@@ -1,8 +1,6 @@
 import os, requests, unittest, subprocess, time, urllib3
 from pathlib import Path
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 assert 'VERBOSE' in os.environ, '$VERBOSE envionment variable not set'
 VERBOSE = os.environ['VERBOSE']
 assert VERBOSE in ['0', '1'], '$VERBOSE must be 0 or 1'
@@ -20,6 +18,7 @@ def setUpModule():
 class Suite(unittest.TestCase):
     def setUp(self):
         print()
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     
     def tearDown(self):
         self.server.terminate()

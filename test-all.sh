@@ -1,11 +1,13 @@
 #!/bin/bash
 set -euf -o pipefail
 
-make test PY=python3.6
-make test PY=python3.6 PROTOCOL=HTTPS
-make test PY=python3.7
-make test PY=python3.7 PROTOCOL=HTTPS
-make test PY=python3.8
-make test PY=python3.8 PROTOCOL=HTTPS
-make test PY=python3.9
-make test PY=python3.9 PROTOCOL=HTTPS
+make test PY=python3.6 VERBOSE=0
+make test PY=python3.6 VERBOSE=0 PROTOCOL=HTTPS
+make test PY=python3.7 VERBOSE=0
+make test PY=python3.7 VERBOSE=0 PROTOCOL=HTTPS
+make test PY=python3.8 VERBOSE=0
+make test PY=python3.8 VERBOSE=0 PROTOCOL=HTTPS
+make test PY=python3.9 VERBOSE=0
+make test PY=python3.9 VERBOSE=0 PROTOCOL=HTTPS
+make test PY=python3.10 VERBOSE=0
+make test PY=python3.10 VERBOSE=0 PROTOCOL=HTTPS

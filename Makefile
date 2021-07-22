@@ -1,11 +1,11 @@
 PY=python3
 TEST=test.py
-NOSE_ARGS=--rednose --verbosity 2
+PYTEST_ARGS=--verbosity 2
 VERBOSE=1
 PROTOCOL=HTTP
 
 ifneq ($(VERBOSE), 0)
-	NOSE_ARGS:=$(NOSE_ARGS) --nocapture
+	PYTEST_ARGS:=$(PYTEST_ARGS) --capture no
 endif
 
 test-all:
@@ -13,12 +13,12 @@ test-all:
 
 test: localhost.pem
 	rm -rf test-temp
-	. venv-$(PY)/bin/activate; PROTOCOL=$(PROTOCOL) VERBOSE=$(VERBOSE) $(PY) -u -m nose $(NOSE_ARGS) $(TEST); deactivate
+	. venv-$(PY)/bin/activate; PROTOCOL=$(PROTOCOL) VERBOSE=$(VERBOSE) $(PY) -u -m pytest $(PYTEST_ARGS) $(TEST)
 
 install-dev:
 	chmod 775 test-all.sh
 	$(PY) -m venv venv-$(PY)
-	. venv-$(PY)/bin/activate; $(PY) -m pip install nose rednose requests; deactivate
+	. venv-$(PY)/bin/activate; $(PY) -m pip install pytest requests
 
 localhost.pem:
 	openssl req -x509 -out localhost.pem -keyout localhost.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost'
