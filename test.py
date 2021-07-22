@@ -133,6 +133,7 @@ class Suite(unittest.TestCase):
     def test_curl_example(self):
         self.spawn_server()
         
+        time.sleep(0.2)
         result = subprocess.run(
             ['curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()), '-k', '-F', 'file_1=@../LICENSE'],
             stdout=None if VERBOSE else subprocess.DEVNULL,
@@ -148,6 +149,7 @@ class Suite(unittest.TestCase):
     def test_curl_token_example(self):
         self.spawn_server(['-t', 'helloworld'])
         
+        time.sleep(0.2)
         result = subprocess.run(
             ['curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()), '-k', '-F', 'file_1=@../README.md', '-F', 'token=helloworld'],
             stdout=None if VERBOSE else subprocess.DEVNULL,
@@ -166,11 +168,21 @@ class Suite(unittest.TestCase):
             stdout=None if VERBOSE else subprocess.DEVNULL,
             stderr=None if VERBOSE else subprocess.DEVNULL,
         )
-        time.sleep(0.1)
     
     def get(self, path, port=8000, *args, **kwargs):
-        return requests.get('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
+        for i in range(10):
+            try:
+                return requests.get('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
+            except Exception as e:
+                if i == 9: raise e
+            
+            time.sleep(0.1)
     
     def post(self, path, port=8000, *args, **kwargs):
-        return requests.post('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
-
+        for i in range(10):
+            try:
+                return requests.post('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
+            except Exception as e:
+                if i == 9: raise e
+            
+            time.sleep(0.1)
