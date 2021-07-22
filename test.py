@@ -1,4 +1,4 @@
-import os, requests, unittest, subprocess, time, urllib3
+import os, requests, unittest, subprocess, time, urllib3, socket
 from pathlib import Path
 
 assert 'VERBOSE' in os.environ, '$VERBOSE envionment variable not set'
@@ -32,11 +32,11 @@ class Suite(unittest.TestCase):
     
     # Verify the --port argument is properly passed to the underlying http.server
     def test_argument_passthrough(self):
-        self.spawn_server(['8080'])
+        self.spawn_server(port=8080)
         
         res = self.get('/', port=8080)
         self.assertEqual(res.status_code, 200)
-        self.assertRaises(requests.ConnectionError, lambda: self.get('/', retries=0))
+        self.assertRaises(requests.ConnectionError, lambda: self.get('/'))
     
     # Verify /upload at least responds to GET
     def test_upload_page_exists(self):
@@ -93,7 +93,7 @@ class Suite(unittest.TestCase):
     
     # Verify uploads are accepted when the toekn option is used and the correct token is supplied
     def test_token_valid(self):
-        self.spawn_server(['-t', 'a-token'])
+        self.spawn_server(token='a-token')
         
         # 'files' option is used for both files and other form data
         res = self.post('/upload', files={
@@ -106,7 +106,7 @@ class Suite(unittest.TestCase):
     
     # Verify uploads are rejected when the toekn option is used and an incorrect token is supplied
     def test_token_invalid(self):
-        self.spawn_server(['-t', 'a-token'])
+        self.spawn_server(token='a-token')
         
         # 'files' option is used for both files and other form data
         res = self.post('/upload', files={
@@ -119,7 +119,7 @@ class Suite(unittest.TestCase):
     
     # Verify uploads are rejected when the toekn option is used and no token is supplied
     def test_token_missing(self):
-        self.spawn_server(['-t', 'a-token'])
+        self.spawn_server(token='a-token')
         
         # 'files' option is used for both files and other form data
         res = self.post('/upload', files={
@@ -133,7 +133,6 @@ class Suite(unittest.TestCase):
     def test_curl_example(self):
         self.spawn_server()
         
-        time.sleep(0.2)
         result = subprocess.run(
             ['curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()), '-k', '-F', 'file_1=@../LICENSE'],
             stdout=None if VERBOSE else subprocess.DEVNULL,
@@ -147,9 +146,8 @@ class Suite(unittest.TestCase):
     
     # Verify example curl command with token works
     def test_curl_token_example(self):
-        self.spawn_server(['-t', 'helloworld'])
+        self.spawn_server(token='helloworld')
         
-        time.sleep(0.2)
         result = subprocess.run(
             ['curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()), '-k', '-F', 'file_1=@../README.md', '-F', 'token=helloworld'],
             stdout=None if VERBOSE else subprocess.DEVNULL,
@@ -160,29 +158,35 @@ class Suite(unittest.TestCase):
         with open('README.md') as f_actual, open('../README.md') as f_expected:
                 self.assertEqual(f_actual.read(), f_expected.read())
     
-    def spawn_server(self, args=[]):
-        args = ['python3', '-u', '-m', 'uploadserver'] + args
-        if PROTOCOL == 'HTTPS': args += ['-c', '../localhost.pem']
+    def spawn_server(self, port=None, token=None,
+        certificate=('../localhost.pem' if PROTOCOL == 'HTTPS' else None)
+    ):
+        args = ['python3', '-u', '-m', 'uploadserver']
+        if port: args += [str(port)]
+        if token: args += ['-t', token]
+        if certificate: args += ['-c', certificate]
+        
         self.server = subprocess.Popen(
             args,
             stdout=None if VERBOSE else subprocess.DEVNULL,
             stderr=None if VERBOSE else subprocess.DEVNULL,
         )
-    
-    def get(self, path, port=8000, retries=10, *args, **kwargs):
-        for i in range(retries + 1):
+        
+        # Wait for server to finish starting
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        for _ in range(10):
             try:
-                return requests.get('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
-            except Exception as e:
-                if i == retries: raise e
-            
-            time.sleep(0.1)
+                time.sleep(0.1)
+                s.connect(('localhost', port or 8000))
+                s.close()
+                break
+            except ConnectionRefusedError:
+                pass
+        else:
+            raise Exception('Port {} not responding. Did the server fail to start?'.format(port or 8000))
     
-    def post(self, path, port=8000, retries=10, *args, **kwargs):
-        for i in range(retries + 1):
-            try:
-                return requests.post('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
-            except Exception as e:
-                if i == retries: raise e
-            
-            time.sleep(0.1)
+    def get(self, path, port=8000, *args, **kwargs):
+        return requests.get('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
+    
+    def post(self, path, port=8000, *args, **kwargs):
+        return requests.post('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), verify=False, *args, **kwargs)
