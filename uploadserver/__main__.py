@@ -23,7 +23,7 @@ if sys.version_info.major == 3 and 6 <= sys.version_info.minor <= 7:
     if sys.version_info.minor == 6: from http.server import HTTPServer as DefaultHTTPServer
     else: from http.server import ThreadingHTTPServer as DefaultHTTPServer
     
-    # Copy of http.server.test() from Python 3.7. ssl_wrap() call added
+    # Copy of http.server.test() from Python 3.7. ssl_wrap() call added and print statement updaed for HTTPS
     def test(HandlerClass=BaseHTTPRequestHandler,
              ServerClass=DefaultHTTPServer,
              protocol="HTTP/1.0", port=8000, bind=""):
@@ -39,8 +39,9 @@ if sys.version_info.major == 3 and 6 <= sys.version_info.minor <= 7:
             if args.certificate: httpd.socket = ssl_wrap(httpd.socket)
             
             sa = httpd.socket.getsockname()
-            serve_message = "Serving HTTP on {host} port {port} (http://{host}:{port}/) ..."
-            print(serve_message.format(host=sa[0], port=sa[1]))
+            serve_message = "Serving {proto} on {host} port {port} ({proto_lower}://{host}:{port}/) ..."
+            print(serve_message.format(host=sa[0], port=sa[1], proto=uploadserver.PROTOCOL, 
+                proto_lower=uploadserver.PROTOCOL.lower()))
             try:
                 httpd.serve_forever()
             except KeyboardInterrupt:
@@ -51,7 +52,7 @@ else:
     from http.server import ThreadingHTTPServer
     from http.server import _get_best_family
     
-    # Copy of http.server.test() from Python 3.8. ssl_wrap() call added
+    # Copy of http.server.test() from Python 3.8. ssl_wrap() call added and print statement updaed for HTTPS
     def test(HandlerClass=BaseHTTPRequestHandler,
              ServerClass=ThreadingHTTPServer,
              protocol="HTTP/1.0", port=8000, bind=None):
@@ -69,8 +70,8 @@ else:
             host, port = httpd.socket.getsockname()[:2]
             url_host = f'[{host}]' if ':' in host else host
             print(
-                f"Serving HTTP on {host} port {port} "
-                f"(http://{url_host}:{port}/) ..."
+                f"Serving {uploadserver.PROTOCOL} on {host} port {port} "
+                f"({uploadserver.PROTOCOL.lower()}://{url_host}:{port}/) ..."
             )
             try:
                 httpd.serve_forever()
@@ -103,6 +104,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     uploadserver.TOKEN = args.token
+    uploadserver.PROTOCOL = 'HTTPS' if args.certificate else 'HTTP'
     if args.cgi:
         handler_class = uploadserver.CGIHTTPRequestHandler
     elif sys.version_info.major >= 3 and sys.version_info.minor >= 7:
