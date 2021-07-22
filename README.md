@@ -3,6 +3,7 @@
 Python's http.server extended to include a file upload page
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://mit-license.org/)
+[![Build Status](https://travis-ci.com/Densaugeo/uploadserver.svg?branch=master)](https://travis-ci.com/github/Densaugeo/uploadserver)
 
 ## Installation
 

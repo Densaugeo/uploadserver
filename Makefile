@@ -15,6 +15,12 @@ test: localhost.pem
 	rm -rf test-temp
 	. venv-$(PY)/bin/activate; PROTOCOL=$(PROTOCOL) VERBOSE=$(VERBOSE) $(PY) -u -m pytest $(PYTEST_ARGS) $(TEST)
 
+test-travis:
+	rm -rf test-temp
+	PROTOCOL=HTTP VERBOSE=0 python -u -m pytest test.py
+	rm -rf test-temp
+	PROTOCOL=HTTPS VERBOSE=0 python -u -m pytest test.py
+
 install-dev:
 	chmod 775 test-all.sh
 	$(PY) -m venv venv-$(PY)
