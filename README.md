@@ -38,6 +38,8 @@ Run with HTTPS:
 # Generate self-signed certificate
 openssl req -x509 -out localhost.pem -keyout localhost.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost'
 
+# The server root should not contain the certificate, for security reasons
+cd server-root
 python3 -m uploadserver -c localhost.pem
 ~~~
 

@@ -7,14 +7,24 @@ if sys.version_info.major >= 3 and sys.version_info.minor >= 8:
     import contextlib
 
 def ssl_wrap(socket):
+    if sys.version_info.major >= 3 and sys.version_info.minor == 6:
+        server_root = pathlib.Path('.').resolve()
+    else:
+        server_root = pathlib.Path(args.directory).resolve()
+    
+    if server_root in pathlib.Path(args.certificate).resolve().parents:
+        print('Certificate \'{}\' is inside web server root \'{}\', exiting'.format(
+            args.certificate, server_root))
+        sys.exit(3)
+    
     try:
         return ssl.wrap_socket(socket, certfile=args.certificate, server_side=True)
     except FileNotFoundError:
-        print('Certificate file \'{}\' not found'.format(args.certificate))
-        sys.exit(1)
+        print('Certificate \'{}\' not found, exiting'.format(args.certificate))
+        sys.exit(4)
     except ssl.SSLError as e:
-        print('SSL error loading certificate file \'{}\': {}'.format(args.certificate, e))
-        sys.exit(1)
+        print('SSL error loading certificate \'{}\': {}, exiting'.format(args.certificate, e))
+        sys.exit(5)
 
 if sys.version_info.major == 3 and 6 <= sys.version_info.minor <= 7:
     from http.server import BaseHTTPRequestHandler
@@ -94,7 +104,7 @@ if __name__ == '__main__':
         help='Specify alternate port [default: 8000]')
     parser.add_argument('--token', '-t', action='store', default='', type=str, nargs='?',
         help='Specify alternate token [default: \'\']')
-    parser.add_argument('--certificate', '-c', action='store', default=None, type=pathlib.Path,
+    parser.add_argument('--certificate', '-c', action='store', default=None,
         help='Specify certificate to use HTTPS [default: none]')
 
     # Directory option was added to http.server in Python 3.7

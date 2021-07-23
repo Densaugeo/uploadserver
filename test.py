@@ -1,4 +1,4 @@
-import os, requests, unittest, subprocess, time, urllib3, socket
+import os, requests, unittest, subprocess, time, urllib3, socket, shutil
 from pathlib import Path
 
 assert 'VERBOSE' in os.environ, '$VERBOSE envionment variable not set'
@@ -21,7 +21,7 @@ class Suite(unittest.TestCase):
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     
     def tearDown(self):
-        self.server.terminate()
+        if hasattr(self, 'server'): self.server.terminate()
     
     # Verify a basic test can run. Most importantly, verify the sleep is long enough for the sever to start
     def test_basic(self):
@@ -128,6 +128,19 @@ class Suite(unittest.TestCase):
         self.assertEqual(res.status_code, 403)
         
         self.assertFalse(Path('missing-token-upload').exists())
+    
+    if PROTOCOL == 'HTTPS':
+        # Verify that uploadserver will refuse to start if given a certificate inside its server root
+        def test_certificate_not_allowed_in_root(self):
+            shutil.copyfile('../localhost.pem', 'localhost.pem')
+            
+            result = subprocess.run(
+                ['python', '-m', 'uploadserver', '-c', 'localhost.pem'],
+                stdout=None if VERBOSE else subprocess.DEVNULL,
+                stderr=None if VERBOSE else subprocess.DEVNULL,
+            )
+            
+            self.assertEqual(result.returncode, 3)
     
     # Verify example curl command works
     def test_curl_example(self):
