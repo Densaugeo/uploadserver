@@ -19,7 +19,7 @@ upload_page = bytes('''<!DOCTYPE html>
 <body onload="document.getElementsByName('token')[0].value=localStorage.token || ''">
 <h1>File Upload</h1>
 <form action="upload" method="POST" enctype="multipart/form-data">
-<input name="file_1" type="file" />
+<input name="files" type="file" multiple />
 <br />
 <br />
 Token (only needed if server was started with token option): <input name="token" type="text" />
@@ -38,24 +38,33 @@ def send_upload_page(handler):
     handler.wfile.write(upload_page)
 
 def receive_upload(handler):
+    result = 0
+    
     form = cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
-    if 'file_1' in form and form['file_1'].file and form['file_1'].filename:
-        filename = pathlib.Path(form['file_1'].filename).name
-    else:
-        filename = None
+    if 'files' not in form: return
+    fields = form['files']
+    if not isinstance(fields, list): fields = [fields]
     
-    if TOKEN:
-        # server started with token.
-        if 'token' not in form or form['token'].value != TOKEN:
-            # no token or token error
-            handler.log_message('Upload of "{}" rejected (bad token)'.format(filename))
-            return http.HTTPStatus.FORBIDDEN
+    for field in fields:
+        if field.file and field.filename:
+            filename = pathlib.Path(field.filename).name
+        else:
+            filename = None
     
-    if filename:
-        with open(pathlib.Path.cwd() / filename, 'wb') as f:
-            f.write(form['file_1'].file.read())
-            handler.log_message('Upload of "{}" accepted'.format(filename))
-            return 0
+        if TOKEN:
+            # server started with token.
+            if 'token' not in form or form['token'].value != TOKEN:
+                # no token or token error
+                handler.log_message('Upload of "{}" rejected (bad token)'.format(filename))
+                result = http.HTTPStatus.FORBIDDEN
+                continue # continue so if a multiple file upload is rejected, each file will be logged
+        
+        if filename:
+            with open(pathlib.Path.cwd() / filename, 'wb') as f:
+                f.write(field.file.read())
+                handler.log_message('Upload of "{}" accepted'.format(filename))
+    
+    return result
 
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):

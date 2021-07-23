@@ -25,13 +25,18 @@ After the server starts, the upload page is at /upload. For example, if the serv
 
 Warning: This is an upload server, and running it will allow uploads. Uploaded files will replace existing files with the same name.
 
+Now supports uploading multiple files at once! Select multiple files in the web page's file selector, or upload with cURL:
+~~~
+curl http://127.0.0.1:8000/upload -F files=@multiple-example-1.txt -F files=@multiple-example-2.txt
+~~~
+
 Run with a simple token.
 ~~~
 python3 -m uploadserver -t helloworld
 ~~~
 
 Now you can upload a file with token. For example:
-`curl http://127.0.0.1:8000/upload -F "file_1=@abc.txt" -F 'token=helloworld'`
+`curl http://127.0.0.1:8000/upload -F "files=@token-example.txt" -F 'token=helloworld'`
 
 Run with HTTPS:
 ~~~

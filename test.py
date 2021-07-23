@@ -50,7 +50,7 @@ class Suite(unittest.TestCase):
         self.spawn_server()
         
         res = self.post('/upload', files={
-            'file_1': ('a-file', 'file-content'),
+            'files': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 200)
         
@@ -61,11 +61,11 @@ class Suite(unittest.TestCase):
         self.spawn_server()
         
         res = self.post('/upload', files={
-            'file_1': ('a-file', 'file-content'),
+            'files': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 200)
         res = self.post('/upload', files={
-            'file_1': ('a-file', 'file-content-replaced'),
+            'files': ('a-file', 'file-content-replaced'),
         })
         self.assertEqual(res.status_code, 200)
         
@@ -80,12 +80,25 @@ class Suite(unittest.TestCase):
         })
         self.assertEqual(res.status_code, 200)
     
+    # Verify multiple file upload works
+    def test_multiple_upload(self):
+        self.spawn_server()
+        
+        res = self.post('/upload', files=[
+            ('files', ('file-1', 'file-content-1')),
+            ('files', ('file-2', 'file-content-2')),
+        ])
+        self.assertEqual(res.status_code, 200)
+        
+        with open('file-1') as f: self.assertEqual(f.read(), 'file-content-1')
+        with open('file-2') as f: self.assertEqual(f.read(), 'file-content-2')
+    
     # Verify directory traversal attempts are contained within server folder
     def test_directory_traversal(self):
         self.spawn_server()
         
         res = self.post('/upload', files={
-            'file_1': ('../dt-name', 'dt-content'),
+            'files': ('../dt-name', 'dt-content'),
         })
         
         with open('dt-name') as f: self.assertEqual(f.read(), 'dt-content')
@@ -97,7 +110,7 @@ class Suite(unittest.TestCase):
         
         # 'files' option is used for both files and other form data
         res = self.post('/upload', files={
-            'file_1': ('valid-token-upload', 'token-upload-content'),
+            'files': ('valid-token-upload', 'token-upload-content'),
             'token': (None, 'a-token'),
         })
         self.assertEqual(res.status_code, 200)
@@ -110,7 +123,7 @@ class Suite(unittest.TestCase):
         
         # 'files' option is used for both files and other form data
         res = self.post('/upload', files={
-            'file_1': ('invalid-token-upload', 'token-upload-content'),
+            'files': ('invalid-token-upload', 'token-upload-content'),
             'token': (None, 'a-bad-token'),
         })
         self.assertEqual(res.status_code, 403)
@@ -123,7 +136,7 @@ class Suite(unittest.TestCase):
         
         # 'files' option is used for both files and other form data
         res = self.post('/upload', files={
-            'file_1': ('missing-token-upload', 'token-upload-content'),
+            'files': ('missing-token-upload', 'token-upload-content'),
         })
         self.assertEqual(res.status_code, 403)
         
@@ -146,29 +159,53 @@ class Suite(unittest.TestCase):
     def test_curl_example(self):
         self.spawn_server()
         
-        result = subprocess.run(
-            ['curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()), '-k', '-F', 'file_1=@../LICENSE'],
+        result = subprocess.run([
+                'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
+                '-k', '-F', 'files=@../test-files/simple-example.txt',
+            ],
             stdout=None if VERBOSE else subprocess.DEVNULL,
             stderr=None if VERBOSE else subprocess.DEVNULL,
         )
         
         self.assertEqual(result.returncode, 0)
         
-        with open('LICENSE') as f_actual, open('../LICENSE') as f_expected:
+        with open('simple-example.txt') as f_actual, open('../test-files/simple-example.txt') as f_expected:
+                self.assertEqual(f_actual.read(), f_expected.read())
+    
+    # Verify example curl command with multiple files works
+    def test_curl_multiple_example(self):
+        self.spawn_server()
+        
+        result = subprocess.run([
+                'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
+                '-k', '-F', 'files=@../test-files/multiple-example-1.txt',
+                '-F', 'files=@../test-files/multiple-example-2.txt',
+            ],
+            stdout=None if VERBOSE else subprocess.DEVNULL,
+            stderr=None if VERBOSE else subprocess.DEVNULL,
+        )
+        
+        self.assertEqual(result.returncode, 0)
+        
+        with open('multiple-example-1.txt') as f_actual, open('../test-files/multiple-example-1.txt') as f_expected:
+                self.assertEqual(f_actual.read(), f_expected.read())
+        with open('multiple-example-2.txt') as f_actual, open('../test-files/multiple-example-2.txt') as f_expected:
                 self.assertEqual(f_actual.read(), f_expected.read())
     
     # Verify example curl command with token works
     def test_curl_token_example(self):
         self.spawn_server(token='helloworld')
         
-        result = subprocess.run(
-            ['curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()), '-k', '-F', 'file_1=@../README.md', '-F', 'token=helloworld'],
+        result = subprocess.run([
+                'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
+                '-k', '-F', 'files=@../test-files/token-example.txt', '-F', 'token=helloworld',
+            ],
             stdout=None if VERBOSE else subprocess.DEVNULL,
             stderr=None if VERBOSE else subprocess.DEVNULL,
         )
         self.assertEqual(result.returncode, 0)
         
-        with open('README.md') as f_actual, open('../README.md') as f_expected:
+        with open('token-example.txt') as f_actual, open('../test-files/token-example.txt') as f_expected:
                 self.assertEqual(f_actual.read(), f_expected.read())
     
     def spawn_server(self, port=None, token=None,
