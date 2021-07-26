@@ -52,7 +52,7 @@ class Suite(unittest.TestCase):
         res = self.post('/upload', files={
             'files': ('a-file', 'file-content'),
         })
-        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.status_code, 204)
         
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
     
@@ -63,11 +63,11 @@ class Suite(unittest.TestCase):
         res = self.post('/upload', files={
             'files': ('a-file', 'file-content'),
         })
-        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.status_code, 204)
         res = self.post('/upload', files={
             'files': ('a-file', 'file-content-replaced'),
         })
-        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.status_code, 204)
         
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content-replaced')
     
@@ -78,7 +78,7 @@ class Suite(unittest.TestCase):
         res = self.post('/upload', files={
             'file_foo': ('a-file', 'file-content'),
         })
-        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.status_code, 204)
     
     # Verify multiple file upload works
     def test_multiple_upload(self):
@@ -88,7 +88,7 @@ class Suite(unittest.TestCase):
             ('files', ('file-1', 'file-content-1')),
             ('files', ('file-2', 'file-content-2')),
         ])
-        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.status_code, 204)
         
         with open('file-1') as f: self.assertEqual(f.read(), 'file-content-1')
         with open('file-2') as f: self.assertEqual(f.read(), 'file-content-2')
@@ -113,7 +113,7 @@ class Suite(unittest.TestCase):
             'files': ('valid-token-upload', 'token-upload-content'),
             'token': (None, 'a-token'),
         })
-        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.status_code, 204)
         
         with open('valid-token-upload') as f: self.assertEqual(f.read(), 'token-upload-content')
     
