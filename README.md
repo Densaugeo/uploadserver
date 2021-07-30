@@ -25,7 +25,7 @@ Warning: This is an upload server, and running it will allow uploads. Uploaded f
 
 Now supports uploading multiple files at once! Select multiple files in the web page's file selector, or upload with cURL:
 ~~~
-curl http://127.0.0.1:8000/upload -F files=@multiple-example-1.txt -F files=@multiple-example-2.txt
+curl http://127.0.0.1:8000/upload -F 'files=@multiple-example-1.txt' -F 'files=@multiple-example-2.txt'
 ~~~
 
 ## Token Option
@@ -36,7 +36,9 @@ python3 -m uploadserver -t helloworld
 ~~~
 
 Now you can upload a file with the token. For example:
-`curl http://127.0.0.1:8000/upload -F "files=@token-example.txt" -F 'token=helloworld'`
+~~~
+curl http://127.0.0.1:8000/upload -F 'files=@token-example.txt' -F 'token=helloworld'
+~~~
 
 Uploads without the token will be rejected. Tokens can be stolen if sent in plain HTTP, so this option is best used with HTTPS.
 
