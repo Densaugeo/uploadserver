@@ -12,18 +12,33 @@ def ssl_wrap(socket):
     else:
         server_root = pathlib.Path(args.directory).resolve()
     
-    if server_root in pathlib.Path(args.certificate).resolve().parents:
-        print('Certificate \'{}\' is inside web server root \'{}\', exiting'.format(
-            args.certificate, server_root))
+    if server_root in pathlib.Path(args.server_certificate).resolve().parents:
+        print('Server certificate \'{}\' is inside web server root \'{}\', exiting'.format(
+            args.server_certificate, server_root))
         sys.exit(3)
+    if args.client_certificate:
+        if server_root in pathlib.Path(args.client_certificate).resolve().parents:
+            print('Client certificate \'{}\' is inside web server root \'{}\', exiting'.format(
+                args.client_certificate, server_root))
+            sys.exit(3)
     
     try:
-        return ssl.wrap_socket(socket, certfile=args.certificate, server_side=True)
+        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context.load_cert_chain(certfile=args.server_certificate)
+        
+        if args.client_certificate:
+            context.load_verify_locations(cafile=args.client_certificate)
+            context.verify_mode = ssl.CERT_REQUIRED
+
+        return context.wrap_socket(socket, server_side=True)
     except FileNotFoundError:
-        print('Certificate \'{}\' not found, exiting'.format(args.certificate))
+        if args.client_certificate:
+            print('Server certificate \'{}\' or client certificate \'{}\' not found, exiting'.format(args.server_certificate, args.client_certificate))
+        else:
+            print('Server certificate \'{}\' not found, exiting'.format(args.server_certificate))
         sys.exit(4)
     except ssl.SSLError as e:
-        print('SSL error loading certificate \'{}\': {}, exiting'.format(args.certificate, e))
+        print('SSL error loading server certificate \'{}\': {}, exiting'.format(args.server_certificate, e))
         sys.exit(5)
 
 if sys.version_info.major == 3 and 6 <= sys.version_info.minor <= 7:
@@ -46,12 +61,12 @@ if sys.version_info.major == 3 and 6 <= sys.version_info.minor <= 7:
         
         HandlerClass.protocol_version = protocol
         with ServerClass(server_address, HandlerClass) as httpd:
-            if args.certificate: httpd.socket = ssl_wrap(httpd.socket)
+            if args.server_certificate: httpd.socket = ssl_wrap(httpd.socket)
             
             sa = httpd.socket.getsockname()
-            serve_message = "Serving {proto} on {host} port {port} ({proto_lower}://{host}:{port}/) ..."
+            serve_message = "Serving {proto} on {host} port {port} ({proto_lower}://{host}:{port}/) {mTLS}..."
             print(serve_message.format(host=sa[0], port=sa[1], proto=uploadserver.PROTOCOL, 
-                proto_lower=uploadserver.PROTOCOL.lower()))
+                proto_lower=uploadserver.PROTOCOL.lower()), mTLS=("with mutual TLS " if args.client_certificate else ""))
             try:
                 httpd.serve_forever()
             except KeyboardInterrupt:
@@ -75,13 +90,14 @@ else:
         
         HandlerClass.protocol_version = protocol
         with ServerClass(addr, HandlerClass) as httpd:
-            if args.certificate: httpd.socket = ssl_wrap(httpd.socket)
+            if args.server_certificate: httpd.socket = ssl_wrap(httpd.socket)
             
             host, port = httpd.socket.getsockname()[:2]
             url_host = f'[{host}]' if ':' in host else host
+            mTLS = "with mutual TLS " if args.client_certificate else ""
             print(
                 f"Serving {uploadserver.PROTOCOL} on {host} port {port} "
-                f"({uploadserver.PROTOCOL.lower()}://{url_host}:{port}/) ..."
+                f"({uploadserver.PROTOCOL.lower()}://{url_host}:{port}/) {mTLS}..."
             )
             try:
                 httpd.serve_forever()
@@ -104,8 +120,10 @@ if __name__ == '__main__':
         help='Specify alternate port [default: 8000]')
     parser.add_argument('--token', '-t', action='store', default='', type=str, nargs='?',
         help='Specify alternate token [default: \'\']')
-    parser.add_argument('--certificate', '-c', action='store', default=None,
-        help='Specify certificate to use HTTPS [default: none]')
+    parser.add_argument('--certificate', '-c', action='store', default=None, dest='server_certificate',
+        help='Specify HTTPS server certificate to use [default: none]')
+    parser.add_argument('--client_certificate', action='store', default=None,
+        help='Specify HTTPS client certificate to accept for mutual TLS [default: none]')
 
     # Directory option was added to http.server in Python 3.7
     if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
@@ -114,7 +132,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     uploadserver.TOKEN = args.token
-    uploadserver.PROTOCOL = 'HTTPS' if args.certificate else 'HTTP'
+    uploadserver.PROTOCOL = 'HTTPS' if args.server_certificate else 'HTTP'
     if args.cgi:
         handler_class = uploadserver.CGIHTTPRequestHandler
     elif sys.version_info.major >= 3 and sys.version_info.minor >= 7:
