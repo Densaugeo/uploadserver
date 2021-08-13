@@ -121,7 +121,7 @@ if __name__ == '__main__':
         help='Specify alternate port [default: 8000]')
     parser.add_argument('--token', '-t', action='store', default='', type=str, nargs='?',
         help='Specify alternate token [default: \'\']')
-    parser.add_argument('--certificate', '-c', action='store', default=None, dest='server_certificate',
+    parser.add_argument('--server_certificate' '--certificate', '-c', action='store', default=None,
         help='Specify HTTPS server certificate to use [default: none]')
     parser.add_argument('--client_certificate', action='store', default=None,
         help='Specify HTTPS client certificate to accept for mutual TLS [default: none]')
