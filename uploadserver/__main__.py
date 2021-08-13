@@ -25,20 +25,22 @@ def ssl_wrap(socket):
     try:
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         context.load_cert_chain(certfile=args.server_certificate)
-        
+    except FileNotFoundError:
+        print('Server certificate \'{}\' not found, exiting'.format(args.server_certificate))
+        sys.exit(4)
+    
+    try:
         if args.client_certificate:
             context.load_verify_locations(cafile=args.client_certificate)
             context.verify_mode = ssl.CERT_REQUIRED
-
-        return context.wrap_socket(socket, server_side=True)
     except FileNotFoundError:
-        if args.client_certificate:
-            print('Server certificate \'{}\' or client certificate \'{}\' not found, exiting'.format(args.server_certificate, args.client_certificate))
-        else:
-            print('Server certificate \'{}\' not found, exiting'.format(args.server_certificate))
+        print('Client certificate \'{}\' not found, exiting'.format(args.client_certificate))
         sys.exit(4)
+    
+    try:
+        return context.wrap_socket(socket, server_side=True)
     except ssl.SSLError as e:
-        print('SSL error loading server certificate \'{}\': {}, exiting'.format(args.server_certificate, e))
+        print('SSL error: {}, exiting'.format(args.server_certificate, e))
         sys.exit(5)
 
 if sys.version_info.major == 3 and 6 <= sys.version_info.minor <= 7:
@@ -64,9 +66,9 @@ if sys.version_info.major == 3 and 6 <= sys.version_info.minor <= 7:
             if args.server_certificate: httpd.socket = ssl_wrap(httpd.socket)
             
             sa = httpd.socket.getsockname()
-            serve_message = "Serving {proto} on {host} port {port} ({proto_lower}://{host}:{port}/) {mTLS}..."
+            serve_message = "Serving {proto} on {host} port {port} ({proto_lower}://{host}:{port}/) ..."
             print(serve_message.format(host=sa[0], port=sa[1], proto=uploadserver.PROTOCOL, 
-                proto_lower=uploadserver.PROTOCOL.lower()), mTLS=("with mutual TLS " if args.client_certificate else ""))
+                proto_lower=uploadserver.PROTOCOL.lower()))
             try:
                 httpd.serve_forever()
             except KeyboardInterrupt:
@@ -94,10 +96,9 @@ else:
             
             host, port = httpd.socket.getsockname()[:2]
             url_host = f'[{host}]' if ':' in host else host
-            mTLS = "with mutual TLS " if args.client_certificate else ""
             print(
                 f"Serving {uploadserver.PROTOCOL} on {host} port {port} "
-                f"({uploadserver.PROTOCOL.lower()}://{url_host}:{port}/) {mTLS}..."
+                f"({uploadserver.PROTOCOL.lower()}://{url_host}:{port}/) ..."
             )
             try:
                 httpd.serve_forever()
