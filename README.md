@@ -63,14 +63,17 @@ Run with HTTPS and with client authentication:
 openssl req -x509 -out server.pem -keyout server.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=server'
 
 # Generate self-signed client certificate
-openssl req -x509 -out client.crt -keyout client.key -newkey rsa:2048 -nodes -sha256 -subj '/CN=client'
+openssl req -x509 -out client.pem -keyout client.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=client'
+
+# Extract public key from self-signed client certificate
+openssl x509 -in client.pem -out client.crt
 
 # The server root should not contain the certificates, for security reasons
 cd server-root
-python3 -m uploadserver --server_certificate server.pem --client_certificate server.crt
+python3 -m uploadserver --server_certificate server.pem --client_certificate client.crt
 
 # Connect as a client
-curl --insecure --cert client.key https://localhost:8000/
+curl --insecure --cert client.pem https://localhost:8000/
 ~~~
 
 Note: This uses a self-signed server certificate which clients such as web browser and cURL will warn about. Most browsers will allow you to proceed after adding an exception, and cURL will work if given the -k/--insecure option. Using your own certificate from a certificate authority will avoid these warnings.
