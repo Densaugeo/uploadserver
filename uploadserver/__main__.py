@@ -40,7 +40,7 @@ def ssl_wrap(socket):
     try:
         return context.wrap_socket(socket, server_side=True)
     except ssl.SSLError as e:
-        print('SSL error: {}, exiting'.format(args.server_certificate, e))
+        print('SSL error: {}, exiting'.format(e))
         sys.exit(5)
 
 if sys.version_info.major == 3 and 6 <= sys.version_info.minor <= 7:
