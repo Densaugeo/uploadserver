@@ -25,19 +25,19 @@ Warning: This is an upload server, and running it will allow uploads. Uploaded f
 
 Now supports uploading multiple files at once! Select multiple files in the web page's file selector, or upload with cURL:
 ~~~
-curl http://127.0.0.1:8000/upload -F 'files=@multiple-example-1.txt' -F 'files=@multiple-example-2.txt'
+curl http://127.0.0.1:8000/upload --form 'files=@multiple-example-1.txt' --form 'files=@multiple-example-2.txt'
 ~~~
 
 ## Token Option
 
 Run with a simple token.
 ~~~
-python3 -m uploadserver -t helloworld
+python3 -m uploadserver --token helloworld
 ~~~
 
 Now you can upload a file with the token. For example:
 ~~~
-curl http://127.0.0.1:8000/upload -F 'files=@token-example.txt' -F 'token=helloworld'
+curl http://127.0.0.1:8000/upload --form 'files=@token-example.txt' --form 'token=helloworld'
 ~~~
 
 Uploads without the token will be rejected. Tokens can be stolen if sent in plain HTTP, so this option is best used with HTTPS.
@@ -77,6 +77,20 @@ curl --insecure --cert client.pem https://localhost:8000/
 ~~~
 
 Note: This uses a self-signed server certificate which clients such as web browser and cURL will warn about. Most browsers will allow you to proceed after adding an exception, and cURL will work if given the -k/--insecure option. Using your own certificate from a certificate authority will avoid these warnings.
+
+## Streaming option
+
+If the upload is failing because the file is too big, you can use the streaming option. The file name and the token have to be passed as headers.
+
+Launch the server in streaming mode:
+~~~
+python3 -m uploadserver --streaming --token helloworld
+~~~
+
+Now you can upload a big file. For example:
+~~~
+curl http://127.0.0.1:8000/upload --form 'files=@big-file.txt' --header 'filename: big-file.txt' --header 'token: helloworld'
+~~~
 
 ## Breaking Changes in 1.0.0
 
