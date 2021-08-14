@@ -44,17 +44,39 @@ Uploads without the token will be rejected. Tokens can be stolen if sent in plai
 
 ## HTTPS Option
 
-Run with HTTPS:
+Run with HTTPS and without client authentication:
 ~~~
-# Generate self-signed certificate
-openssl req -x509 -out localhost.pem -keyout localhost.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost'
+# Generate self-signed server certificate
+openssl req -x509 -out server.pem -keyout server.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=server'
 
 # The server root should not contain the certificate, for security reasons
 cd server-root
-python3 -m uploadserver -c localhost.pem
+python3 -m uploadserver --server-certificate server.pem
+
+# Connect as a client
+curl --insecure https://localhost:8000/
 ~~~
 
-Note: This uses a self-signed certificate which clients such as web browser and cURL will warn about. Most browsers will allow you to proceed after adding an exception, and cURL will work if given the -k option. Using your own certificate from a certificate authority will avoid these warnings.
+Run with HTTPS and with client authentication:
+~~~
+# Generate self-signed server certificate
+openssl req -x509 -out server.pem -keyout server.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=server'
+
+# Generate self-signed client certificate
+openssl req -x509 -out client.pem -keyout client.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=client'
+
+# Extract public key from self-signed client certificate
+openssl x509 -in client.pem -out client.crt
+
+# The server root should not contain the certificates, for security reasons
+cd server-root
+python3 -m uploadserver --server-certificate server.pem --client-certificate client.crt
+
+# Connect as a client
+curl --insecure --cert client.pem https://localhost:8000/
+~~~
+
+Note: This uses a self-signed server certificate which clients such as web browser and cURL will warn about. Most browsers will allow you to proceed after adding an exception, and cURL will work if given the -k/--insecure option. Using your own certificate from a certificate authority will avoid these warnings.
 
 ## Breaking Changes in 1.0.0
 
