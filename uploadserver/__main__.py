@@ -125,6 +125,8 @@ if __name__ == '__main__':
         help='Specify HTTPS server certificate to use [default: none]')
     parser.add_argument('--client-certificate', action='store', default=None,
         help='Specify HTTPS client certificate to accept for mutual TLS [default: none]')
+    parser.add_argument('--streaming', action='store_true', default=False,
+        help='Streaming file upload mode [default: False]')
 
     # Directory option was added to http.server in Python 3.7
     if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
@@ -134,6 +136,7 @@ if __name__ == '__main__':
     
     uploadserver.TOKEN = args.token
     uploadserver.PROTOCOL = 'HTTPS' if args.server_certificate else 'HTTP'
+    uploadserver.STREAMING = args.streaming
     if args.cgi:
         handler_class = uploadserver.CGIHTTPRequestHandler
     elif sys.version_info.major >= 3 and sys.version_info.minor >= 7:
