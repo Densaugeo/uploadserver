@@ -51,7 +51,7 @@ openssl req -x509 -out server.pem -keyout server.pem -newkey rsa:2048 -nodes -sh
 
 # The server root should not contain the certificate, for security reasons
 cd server-root
-python3 -m uploadserver --server_certificate server.pem
+python3 -m uploadserver --server-certificate server.pem
 
 # Connect as a client
 curl --insecure https://localhost:8000/
@@ -70,7 +70,7 @@ openssl x509 -in client.pem -out client.crt
 
 # The server root should not contain the certificates, for security reasons
 cd server-root
-python3 -m uploadserver --server_certificate server.pem --client_certificate client.crt
+python3 -m uploadserver --server-certificate server.pem --client-certificate client.crt
 
 # Connect as a client
 curl --insecure --cert client.pem https://localhost:8000/
