@@ -25,7 +25,7 @@ Warning: This is an upload server, and running it will allow uploads. Uploaded f
 
 Now supports uploading multiple files at once! Select multiple files in the web page's file selector, or upload with cURL:
 ~~~
-curl http://127.0.0.1:8000/upload -F 'files=@multiple-example-1.txt' -F 'files=@multiple-example-2.txt'
+curl -X POST http://127.0.0.1:8000/upload -F 'files=@multiple-example-1.txt' -F 'files=@multiple-example-2.txt'
 ~~~
 
 ## Token Option
@@ -37,7 +37,7 @@ python3 -m uploadserver -t helloworld
 
 Now you can upload a file with the token. For example:
 ~~~
-curl http://127.0.0.1:8000/upload -F 'files=@token-example.txt' -F 'token=helloworld'
+curl -X POST http://127.0.0.1:8000/upload -F 'files=@token-example.txt' -F 'token=helloworld'
 ~~~
 
 Uploads without the token will be rejected. Tokens can be stolen if sent in plain HTTP, so this option is best used with HTTPS.
@@ -54,7 +54,7 @@ cd server-root
 python3 -m uploadserver --server-certificate server.pem
 
 # Connect as a client
-curl --insecure https://localhost:8000/
+curl -X POST https://localhost:8000/upload --insecure -F files=@simple-example.txt
 ~~~
 
 Run with HTTPS and with client authentication:
@@ -73,7 +73,7 @@ cd server-root
 python3 -m uploadserver --server-certificate server.pem --client-certificate client.crt
 
 # Connect as a client
-curl --insecure --cert client.pem https://localhost:8000/
+curl -X POST https://localhost:8000/upload --insecure --cert client.pem -F files=@mtls-example.txt
 ~~~
 
 Note: This uses a self-signed server certificate which clients such as web browser and cURL will warn about. Most browsers will allow you to proceed after adding an exception, and cURL will work if given the -k/--insecure option. Using your own certificate from a certificate authority will avoid these warnings.

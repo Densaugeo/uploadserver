@@ -192,7 +192,7 @@ class Suite(unittest.TestCase):
         
         result = subprocess.run([
                 'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
-                '-k', '-F', 'files=@../test-files/simple-example.txt',
+                '--insecure', '-F', 'files=@../test-files/simple-example.txt',
             ],
             stdout=None if VERBOSE else subprocess.DEVNULL,
             stderr=None if VERBOSE else subprocess.DEVNULL,
@@ -201,7 +201,7 @@ class Suite(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         
         with open('simple-example.txt') as f_actual, open('../test-files/simple-example.txt') as f_expected:
-                self.assertEqual(f_actual.read(), f_expected.read())
+            self.assertEqual(f_actual.read(), f_expected.read())
     
     # Verify example curl command with multiple files works
     def test_curl_multiple_example(self):
@@ -209,7 +209,7 @@ class Suite(unittest.TestCase):
         
         result = subprocess.run([
                 'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
-                '-k', '-F', 'files=@../test-files/multiple-example-1.txt',
+                '--insecure', '-F', 'files=@../test-files/multiple-example-1.txt',
                 '-F', 'files=@../test-files/multiple-example-2.txt',
             ],
             stdout=None if VERBOSE else subprocess.DEVNULL,
@@ -219,9 +219,9 @@ class Suite(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         
         with open('multiple-example-1.txt') as f_actual, open('../test-files/multiple-example-1.txt') as f_expected:
-                self.assertEqual(f_actual.read(), f_expected.read())
+            self.assertEqual(f_actual.read(), f_expected.read())
         with open('multiple-example-2.txt') as f_actual, open('../test-files/multiple-example-2.txt') as f_expected:
-                self.assertEqual(f_actual.read(), f_expected.read())
+            self.assertEqual(f_actual.read(), f_expected.read())
     
     # Verify example curl command with token works
     def test_curl_token_example(self):
@@ -229,7 +229,7 @@ class Suite(unittest.TestCase):
         
         result = subprocess.run([
                 'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
-                '-k', '-F', 'files=@../test-files/token-example.txt', '-F', 'token=helloworld',
+                '--insecure', '-F', 'files=@../test-files/token-example.txt', '-F', 'token=helloworld',
             ],
             stdout=None if VERBOSE else subprocess.DEVNULL,
             stderr=None if VERBOSE else subprocess.DEVNULL,
@@ -237,6 +237,23 @@ class Suite(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         
         with open('token-example.txt') as f_actual, open('../test-files/token-example.txt') as f_expected:
+            self.assertEqual(f_actual.read(), f_expected.read())
+    
+    if PROTOCOL == 'HTTPS':
+        # Verify example curl command with mTLS works
+        def test_curl_mtls_example(self):
+            self.spawn_server(client_certificate='../client.crt')
+            
+            result = subprocess.run([
+                    'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
+                    '--insecure', '--cert', '../client.pem', '-F', 'files=@../test-files/mtls-example.txt',
+                ],
+                stdout=None if VERBOSE else subprocess.DEVNULL,
+                stderr=None if VERBOSE else subprocess.DEVNULL,
+            )
+            self.assertEqual(result.returncode, 0)
+            
+            with open('mtls-example.txt') as f_actual, open('../test-files/mtls-example.txt') as f_expected:
                 self.assertEqual(f_actual.read(), f_expected.read())
     
     def spawn_server(self, port=None, token=None,
