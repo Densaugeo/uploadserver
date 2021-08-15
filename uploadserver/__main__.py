@@ -1,4 +1,4 @@
-import http.server, sys, argparse, uploadserver, ssl, pathlib
+import http.server, sys, argparse, uploadserver, ssl, pathlib, os
 
 if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
     import os, functools
@@ -132,9 +132,9 @@ if __name__ == '__main__':
             help='Specify alternative directory [default:current directory]')
     args = parser.parse_args()
     
-    uploadserver.DIRECTORY = args.directory
     uploadserver.TOKEN = args.token
     uploadserver.PROTOCOL = 'HTTPS' if args.server_certificate else 'HTTP'
+    uploadserver.DIRECTORY = args.directory if hasattr(args, 'directory') else os.getcwd()
     if args.cgi:
         handler_class = uploadserver.CGIHTTPRequestHandler
     elif sys.version_info.major >= 3 and sys.version_info.minor >= 7:
