@@ -143,12 +143,43 @@ class Suite(unittest.TestCase):
         self.assertFalse(Path('missing-token-upload').exists())
     
     if PROTOCOL == 'HTTPS':
+        def test_client_cert_valid(self):
+            self.spawn_server(client_certificate='../client.crt')
+            
+            res = self.post('/upload', cert='../client.pem', files={
+                'files': ('valid-client-cert-upload', 'client-cert-upload-content'),
+            })
+            self.assertEqual(res.status_code, 204)
+            
+            with open('valid-client-cert-upload') as f: self.assertEqual(f.read(), 'client-cert-upload-content')
+    
+    if PROTOCOL == 'HTTPS':
+        def test_client_cert_invalid(self):
+            self.spawn_server(client_certificate='../client.crt')
+            
+            self.assertRaises(requests.ConnectionError, lambda: self.post('/upload', cert='../server.pem', files={
+                'files': ('invalid-client-cert-upload', 'client-cert-upload-content')
+            }))
+            
+            self.assertFalse(Path('invalid-client-cert-upload').exists())
+    
+    if PROTOCOL == 'HTTPS':
+        def test_client_cert_missing(self):
+            self.spawn_server(client_certificate='../client.crt')
+            
+            self.assertRaises(requests.ConnectionError, lambda: self.post('/upload', files={
+                'files': ('missing-client-cert-upload', 'client-cert-upload-content'),
+            }))
+            
+            self.assertFalse(Path('missing-client-cert-upload').exists())
+    
+    if PROTOCOL == 'HTTPS':
         # Verify that uploadserver will refuse to start if given a certificate inside its server root
         def test_certificate_not_allowed_in_root(self):
-            shutil.copyfile('../localhost.pem', 'localhost.pem')
+            shutil.copyfile('../server.pem', 'server.pem')
             
             result = subprocess.run(
-                ['python', '-m', 'uploadserver', '-c', 'localhost.pem'],
+                ['python', '-m', 'uploadserver', '-c', 'server.pem'],
                 stdout=None if VERBOSE else subprocess.DEVNULL,
                 stderr=None if VERBOSE else subprocess.DEVNULL,
             )
@@ -209,12 +240,13 @@ class Suite(unittest.TestCase):
                 self.assertEqual(f_actual.read(), f_expected.read())
     
     def spawn_server(self, port=None, token=None,
-        certificate=('../localhost.pem' if PROTOCOL == 'HTTPS' else None)
+        server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None
     ):
         args = ['python3', '-u', '-m', 'uploadserver']
         if port: args += [str(port)]
         if token: args += ['-t', token]
-        if certificate: args += ['-c', certificate]
+        if server_certificate: args += ['-c', server_certificate]
+        if client_certificate: args += ['--client-certificate', client_certificate]
         
         self.server = subprocess.Popen(
             args,

@@ -1,6 +1,8 @@
 venv-*
 test-temp
-localhost.pem
+server.pem
+client.pem
+client.crt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

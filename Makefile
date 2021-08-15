@@ -1,6 +1,6 @@
 PY=python3
 TEST=test.py
-PYTEST_ARGS=--verbosity 2
+PYTEST_ARGS=--verbosity 2 --tb short
 VERBOSE=1
 PROTOCOL=HTTP
 
@@ -8,26 +8,32 @@ ifneq ($(VERBOSE), 0)
 	PYTEST_ARGS:=$(PYTEST_ARGS) --capture no
 endif
 
-test-all: localhost.pem
+test-all: server.pem client.pem client.crt
 	./test-all.sh
 
-test: localhost.pem
+test: server.pem client.pem client.crt
 	rm -rf test-temp
 	. venv-$(PY)/bin/activate; PROTOCOL=$(PROTOCOL) VERBOSE=$(VERBOSE) $(PY) -u -m pytest $(PYTEST_ARGS) $(TEST)
 
-test-travis: localhost.pem
+test-travis: server.pem client.pem client.crt
 	rm -rf test-temp
-	PROTOCOL=HTTP VERBOSE=0 python -u -m pytest test.py
+	PROTOCOL=HTTP VERBOSE=0 python -u -m pytest --tb short test.py
 	rm -rf test-temp
-	PROTOCOL=HTTPS VERBOSE=0 python -u -m pytest test.py
+	PROTOCOL=HTTPS VERBOSE=0 python -u -m pytest --tb short test.py
 
 install-dev:
 	chmod 775 test-all.sh
 	$(PY) -m venv venv-$(PY)
 	. venv-$(PY)/bin/activate; $(PY) -m pip install pytest requests
 
-localhost.pem:
-	openssl req -x509 -out localhost.pem -keyout localhost.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost'
+server.pem:
+	openssl req -x509 -out server.pem -keyout server.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=server'
+
+client.pem:
+	openssl req -x509 -out client.pem -keyout client.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=client'
+
+client.crt:
+	openssl x509 -in client.pem -out client.crt
 
 package: uploadserver/__init__.py uploadserver/__main__.py LICENSE README.md setup.py
 	$(PY) -m pip install --user --upgrade setuptools wheel
