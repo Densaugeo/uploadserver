@@ -1,4 +1,4 @@
-import os, requests, unittest, subprocess, time, urllib3, socket, shutil
+import os, requests, unittest, subprocess, time, urllib3, socket, shutil, sys
 from pathlib import Path
 
 assert 'VERBOSE' in os.environ, '$VERBOSE envionment variable not set'
@@ -14,6 +14,7 @@ def setUpModule():
     os.mkdir(Path(__file__).parent / 'test-temp')
     os.chdir(Path(__file__).parent / 'test-temp')
     os.symlink('../uploadserver', 'uploadserver')
+    os.mkdir('directory-option-test')
 
 class Suite(unittest.TestCase):
     def setUp(self):
@@ -103,6 +104,18 @@ class Suite(unittest.TestCase):
         
         with open('dt-name') as f: self.assertEqual(f.read(), 'dt-content')
         self.assertFalse(Path('../dt-name').exists())
+    
+    # Directory option was added to http.server in Python 3.7
+    if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
+        def test_upload_respects_directory(self):
+            self.spawn_server(directory='directory-option-test')
+            
+            res = self.post('/upload', files={
+                'files': ('directory-file', 'file-content'),
+            })
+            self.assertEqual(res.status_code, 204)
+            
+            with open('directory-option-test/directory-file') as f: self.assertEqual(f.read(), 'file-content')
     
     # Verify uploads are accepted when the toekn option is used and the correct token is supplied
     def test_token_valid(self):
@@ -256,11 +269,12 @@ class Suite(unittest.TestCase):
             with open('mtls-example.txt') as f_actual, open('../test-files/mtls-example.txt') as f_expected:
                 self.assertEqual(f_actual.read(), f_expected.read())
     
-    def spawn_server(self, port=None, token=None,
+    def spawn_server(self, port=None, directory=None, token=None,
         server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None
     ):
         args = ['python3', '-u', '-m', 'uploadserver']
         if port: args += [str(port)]
+        if directory: args += ['-d', directory]
         if token: args += ['-t', token]
         if server_certificate: args += ['-c', server_certificate]
         if client_certificate: args += ['--client-certificate', client_certificate]

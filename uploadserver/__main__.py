@@ -132,6 +132,7 @@ if __name__ == '__main__':
             help='Specify alternative directory [default:current directory]')
     args = parser.parse_args()
     
+    uploadserver.DIRECTORY = args.directory
     uploadserver.TOKEN = args.token
     uploadserver.PROTOCOL = 'HTTPS' if args.server_certificate else 'HTTP'
     if args.cgi:

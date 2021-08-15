@@ -60,7 +60,7 @@ def receive_upload(handler):
                 continue # continue so if a multiple file upload is rejected, each file will be logged
         
         if filename:
-            with open(pathlib.Path.cwd() / filename, 'wb') as f:
+            with open(pathlib.Path(DIRECTORY) / filename, 'wb') as f:
                 f.write(field.file.read())
                 handler.log_message('Upload of "{}" accepted'.format(filename))
     
