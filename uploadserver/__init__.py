@@ -1,7 +1,6 @@
 import http.server, http, cgi, pathlib, tempfile, shutil, os
 from streaming_form_data import StreamingFormDataParser
-from streaming_form_data.targets import FileTarget, SHA256Target
-from tqdm import tqdm
+from streaming_form_data.targets import DirectoryTarget, ValueTarget
 
 TOKEN = ''
 upload_page = bytes('''<!DOCTYPE html>
@@ -40,72 +39,16 @@ def send_upload_page(handler):
     handler.wfile.write(upload_page)
 
 def receive_upload(handler):
-    result = http.HTTPStatus.NO_CONTENT
-    
-    form = cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
-    if 'files' not in form:
-        result = http.HTTPStatus.BAD_REQUEST
-        return result
-    fields = form['files']
-    if not isinstance(fields, list): fields = [fields]
-    
-    for field in fields:
-        if field.file and field.filename:
-            filename = field.filename
-        else:
-            filename = None
-    
-        if TOKEN:
-            # server started with token.
-            if 'token' not in form or form['token'].value != TOKEN:
-                # no token or token error
-                handler.log_message('Upload of "{}" rejected (bad token)'.format(filename))
-                result = http.HTTPStatus.FORBIDDEN
-                continue # continue so if a multiple file upload is rejected, each file will be logged
-        
-        if filename:
-            filepath = get_secure_path(filename)
-            with open(filepath, 'wb') as f:
-                f.write(field.file.read())
-                handler.log_message('Upload of "{}" accepted'.format(filename))
-    
-    return result
+    with tempfile.TemporaryDirectory() as temporary_directory:
 
-def receive_streaming_upload(handler):
-    result = http.HTTPStatus.INTERNAL_SERVER_ERROR
-
-    if TOKEN:
-        # server started with token.
-        if 'token' not in handler.headers or handler.headers['token'] != TOKEN:
-            # no token or token error
-            handler.log_message('Upload rejected (bad token)')
-            result = http.HTTPStatus.FORBIDDEN
-            return result
-
-    if 'filename' not in handler.headers or not handler.headers['filename']:
-        handler.log_message('Upload rejected (no filename)')
-        result = http.HTTPStatus.BAD_REQUEST
-        return result
-
-    file_name = handler.headers['filename']
-    file_path = get_secure_path(file_name)
-
-    if not file_path:
-        result = http.HTTPStatus.BAD_REQUEST
-        return result
-
-    try:
-        # Initialize temporary file
-        temporary_file = tempfile.NamedTemporaryFile(delete=False)
-        temporary_file_path = temporary_file.name
-
-        # Initialize parser
-        file_hash = SHA256Target()
+        # Initialize parser and targets
         parser = StreamingFormDataParser(headers=handler.headers)
-        parser.register('file', FileTarget(temporary_file_path))
-        parser.register('file', file_hash)
+        directory_target = DirectoryTarget(temporary_directory)
+        token_target = ValueTarget()
+        parser.register('files', directory_target)
+        parser.register('token', token_target)
 
-        # Size of chunks to read from remote file
+        # Size of chunks to read from remote
         current_chunk_size = 1024
 
         # Total length of remote file
@@ -113,41 +56,31 @@ def receive_streaming_upload(handler):
         current_size = 0
 
         # Process upload in chunks
-        with tqdm(desc='Receiving ' + file_name, total=total_size, dynamic_ncols=True, mininterval=1, unit='B', unit_scale=True) as progress_bar:
-            while current_size < total_size:
-                current_size += current_chunk_size
-                if current_size > total_size:
-                    current_chunk_size += total_size - current_size
-                progress_bar.update(current_chunk_size)
-                chunk = handler.rfile.read(current_chunk_size)
-                if chunk:
-                    parser.data_received(chunk)
-                else:
-                    raise Exception('Transfer was interrupted')
+        while current_size < total_size:
+            current_size += current_chunk_size
+            if current_size > total_size:
+                current_chunk_size += total_size - current_size
+            chunk = handler.rfile.read(current_chunk_size)
+            if chunk:
+                parser.data_received(chunk)
+            else:
+                handler.log_message('Transfer was interrupted')
+                return http.HTTPStatus.BAD_REQUEST
 
-        # Move temporary file to final destination
-        shutil.move(temporary_file_path, file_path)
-        handler.log_message('SHA-256 hashsum of {}: {}'.format(file_name, file_hash.value))
-    except Exception as exception:
-        handler.log_message(str(exception))
+        if TOKEN:
+            # server started with token.
+            if token_target.value.decode("utf-8") != TOKEN:
+                # no token or token error
+                handler.log_message('Upload rejected (bad token)')
+                return http.HTTPStatus.FORBIDDEN
 
-        # Delete temporary file if present
-        if os.path.isfile(temporary_file_path):
-            handler.log_message('Delete temporary file')
-            os.remove(temporary_file_path)
+        # Move temporary files to final destination
+        source_directory_path = pathlib.Path(temporary_directory)
+        destination_directory_path = pathlib.Path.cwd()
+        for multipart_filename in directory_target.multipart_filenames:
+            shutil.move(source_directory_path / multipart_filename, destination_directory_path / multipart_filename)
 
     return http.HTTPStatus.NO_CONTENT
-
-def get_secure_path(file):
-    current_directory = pathlib.Path.cwd()
-    path = pathlib.Path(current_directory).joinpath(file).resolve()
-
-    if path.is_relative_to(current_directory):
-        # File stays in current directory
-        return path
-
-    # Path traversal was attempted
-    return None
 
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -156,10 +89,7 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     
     def do_POST(self):
         if self.path == '/upload':
-            if STREAMING:
-                retcode = receive_streaming_upload(self)
-            else:
-                retcode = receive_upload(self)
+            retcode = receive_upload(self)
 
             if http.HTTPStatus.BAD_REQUEST == retcode:
                 self.send_error(retcode, 'Check your input parameters')
