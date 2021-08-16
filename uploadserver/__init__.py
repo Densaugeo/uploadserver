@@ -40,8 +40,6 @@ def send_upload_page(handler):
 def receive_upload(handler):
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
     
-    upload_directory = pathlib.Path(DIRECTORY)
-    
     form = cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
     if 'files' not in form:
         return (http.HTTPStatus.BAD_REQUEST, 'Field "files" not found')
@@ -52,26 +50,23 @@ def receive_upload(handler):
     
     for field in fields:
         if field.file and field.filename:
-            file_path = upload_directory / field.filename
+            filename = pathlib.Path(field.filename).name
         else:
-            return (http.HTTPStatus.BAD_REQUEST, 'Field "filename" not found')
-        
-        if not file_path.resolve().is_relative_to(upload_directory):
-            handler.log_message('Path traversal attempt: {}'.format(field.filename))
-            return (http.HTTPStatus.BAD_REQUEST, 'Path traversal attempt')
+            filename = None
         
         if TOKEN:
             # server started with token.
             if 'token' not in form or form['token'].value != TOKEN:
                 # no token or token error
-                handler.log_message('Upload of "{}" rejected (bad token)'.format(file_path.name))
+                handler.log_message('Upload of "{}" rejected (bad token)'.format(filename))
                 result = (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and your token is wrong')
                 continue # continue so if a multiple file upload is rejected, each file will be logged
         
-        with open(file_path, 'wb') as f:
-            f.write(field.file.read())
-            handler.log_message('Upload of "{}" accepted'.format(file_path.name))
-            result = (http.HTTPStatus.NO_CONTENT, None)
+        if filename:
+            with open(pathlib.Path(DIRECTORY) / filename, 'wb') as f:
+                f.write(field.file.read())
+                handler.log_message('Upload of "{}" accepted'.format(filename))
+                result = (http.HTTPStatus.NO_CONTENT, None)
     
     return result
 
