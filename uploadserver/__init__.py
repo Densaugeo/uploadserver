@@ -40,12 +40,15 @@ def send_upload_page(handler):
 def receive_upload(handler):
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
     
+    upload_directory = pathlib.Path(DIRECTORY)
+    
     form = cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
     if 'files' not in form:
         return (http.HTTPStatus.BAD_REQUEST, 'Field "files" not found')
     
-    if not isinstance(fields, list): fields = [fields]
-    upload_directory_path = pathlib.Path.(DIRECTORY)
+    fields = form['files']
+    if not isinstance(fields, list):
+    	fields = [fields]
     
     for field in fields:
         if field.file and field.filename:
@@ -61,7 +64,7 @@ def receive_upload(handler):
             # server started with token.
             if 'token' not in form or form['token'].value != TOKEN:
                 # no token or token error
-                handler.log_message('Upload of "{}" rejected (bad token)'.format(filename))
+                handler.log_message('Upload of "{}" rejected (bad token)'.format(file_path.name))
                 result = (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and your token is wrong')
                 continue # continue so if a multiple file upload is rejected, each file will be logged
         
@@ -80,12 +83,12 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/upload':
             result = receive_upload(self)
-            if result.first < http.HTTPStatus.BAD_REQUEST:
-                self.send_response(result.first, result.second)
+            if result[0] < http.HTTPStatus.BAD_REQUEST:
+                self.send_response(result[0], result[1])
                 self.end_headers()
-            else 
-                self.send_error(result.first, result.second)
-        else
+            else:
+                self.send_error(result[0], result[1])
+        else:
           self.send_error(http.HTTPStatus.BAD_REQUEST, 'Can only POST to /upload')
 
 class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
@@ -96,10 +99,10 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/upload':
             result = receive_upload(self)
-            if result.first < http.HTTPStatus.BAD_REQUEST:
-                self.send_response(result.first, result.second)
+            if result[0] < http.HTTPStatus.BAD_REQUEST:
+                self.send_response(result[0], result[1])
                 self.end_headers()
-            else 
-                self.send_error(result.first, result.second)
-        else
+            else:
+                self.send_error(result[0], result[1])
+        else:
           self.send_error(http.HTTPStatus.BAD_REQUEST, 'Can only POST to /upload') # TODO: Check if it corresponds to the previous implementation
