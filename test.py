@@ -79,7 +79,7 @@ class Suite(unittest.TestCase):
         res = self.post('/upload', files={
             'file_foo': ('a-file', 'file-content'),
         })
-        self.assertEqual(res.status_code, 204)
+        self.assertEqual(res.status_code, 400)
     
     # Verify multiple file upload works
     def test_multiple_upload(self):
