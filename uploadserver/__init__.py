@@ -46,7 +46,7 @@ def receive_upload(handler):
     
     fields = form['files']
     if not isinstance(fields, list):
-    	fields = [fields]
+        fields = [fields]
     
     for field in fields:
         if field.file and field.filename:
@@ -84,7 +84,7 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 self.send_error(result[0], result[1])
         else:
-          self.send_error(http.HTTPStatus.BAD_REQUEST, 'Can only POST to /upload')
+            self.send_error(http.HTTPStatus.NOT_FOUND, 'Can only POST to /upload')
 
 class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
     def do_GET(self):
@@ -100,4 +100,4 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
             else:
                 self.send_error(result[0], result[1])
         else:
-          self.send_error(http.HTTPStatus.BAD_REQUEST, 'Can only POST to /upload') # TODO: Check if it corresponds to the previous implementation
+            http.server.CGIHTTPRequestHandler.do_POST(self)
