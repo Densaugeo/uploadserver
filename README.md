@@ -89,8 +89,8 @@ Note: This uses a self-signed server certificate which clients such as web brows
 - File field in upload form renamed from `file_1` to `files`, to reflect support for multiple file upload. Scripts using cURL will need to be upadted with the new field name.
 - Successful uploads now respond with 204 No Content instead of 200 OK, so that cURL will not default to printing the upload page at the terminal.
 
-## Credits
+## Acknowledgements
 
-Most of `uploadserver/__main__.py` was copied from Python's `http.server`.
+Most of `main()` was copied from Python's `http.server`.
 
 Thanks to lishoujun for sending the first pull request! (Added the token option.)
