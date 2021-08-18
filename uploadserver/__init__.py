@@ -1,7 +1,6 @@
 import http.server, http, cgi, pathlib
 
 
-TOKEN = ''
 upload_page = bytes('''<!DOCTYPE html>
 <html>
 <head>
@@ -54,16 +53,16 @@ def receive_upload(handler):
         else:
             filename = None
         
-        if TOKEN:
+        if args.token:
             # server started with token.
-            if 'token' not in form or form['token'].value != TOKEN:
+            if 'token' not in form or form['token'].value != args.token:
                 # no token or token error
                 handler.log_message('Upload of "{}" rejected (bad token)'.format(filename))
                 result = (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and your token is wrong')
                 continue # continue so if a multiple file upload is rejected, each file will be logged
         
         if filename:
-            with open(pathlib.Path(DIRECTORY) / filename, 'wb') as f:
+            with open(pathlib.Path(args.directory) / filename, 'wb') as f:
                 f.write(field.file.read())
                 handler.log_message('Upload of "{}" accepted'.format(filename))
                 result = (http.HTTPStatus.NO_CONTENT, None)

@@ -7,7 +7,7 @@ if sys.version_info.major > 3 or sys.version_info.minor >= 8:
     import contextlib
 
 def ssl_wrap(socket):
-    server_root = pathlib.Path(uploadserver.DIRECTORY).resolve()
+    server_root = pathlib.Path(args.directory).resolve()
     
     if server_root in pathlib.Path(args.server_certificate).resolve().parents:
         print('Server certificate \'{}\' is inside web server root \'{}\', exiting'.format(
@@ -128,11 +128,12 @@ if __name__ == '__main__':
     if sys.version_info.major > 3 or sys.version_info.minor >= 7:
         parser.add_argument('--directory', '-d', default=os.getcwd(),
             help='Specify alternative directory [default:current directory]')
-    args = parser.parse_args()
     
-    uploadserver.TOKEN = args.token
-    uploadserver.PROTOCOL = 'HTTPS' if args.server_certificate else 'HTTP'
-    uploadserver.DIRECTORY = args.directory if hasattr(args, 'directory') else os.getcwd()
+    args = parser.parse_args()
+    if not hasattr(args, 'directory'): args.directory = os.getcwd()
+    uploadserver.args = args
+    uploadserver.PROTOCOL = 'HTTPS' if args.server_certificate else 'HTTP' # Just for log statements
+    
     if args.cgi:
         handler_class = uploadserver.CGIHTTPRequestHandler
     elif sys.version_info.major == 3 and sys.version_info.minor < 7:
