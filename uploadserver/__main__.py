@@ -114,16 +114,17 @@ if __name__ == '__main__':
         bind_default = None
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cgi', action='store_true', help='Run as CGI Server')
+    parser.add_argument('port', type=int, default=8000, nargs='?',
+        help='Specify alternate port [default: 8000]')
+    parser.add_argument('--cgi', action='store_true',
+        help='Run as CGI Server')
     parser.add_argument('--bind', '-b', default=bind_default, metavar='ADDRESS',
         help='Specify alternate bind address [default: all interfaces]')
-    parser.add_argument('port', action='store', default=8000, type=int, nargs='?',
-        help='Specify alternate port [default: 8000]')
-    parser.add_argument('--token', '-t', action='store', default='', type=str, nargs='?',
+    parser.add_argument('--token', '-t', type=str,
         help='Specify alternate token [default: \'\']')
-    parser.add_argument('--server-certificate', '--certificate', '-c', action='store', default=None,
+    parser.add_argument('--server-certificate', '--certificate', '-c',
         help='Specify HTTPS server certificate to use [default: none]')
-    parser.add_argument('--client-certificate', action='store', default=None,
+    parser.add_argument('--client-certificate',
         help='Specify HTTPS client certificate to accept for mutual TLS [default: none]')
 
     # Directory option was added to http.server in Python 3.7
