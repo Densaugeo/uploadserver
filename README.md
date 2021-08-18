@@ -78,6 +78,12 @@ curl -X POST https://localhost:8000/upload --insecure --cert client.pem -F files
 
 Note: This uses a self-signed server certificate which clients such as web browser and cURL will warn about. Most browsers will allow you to proceed after adding an exception, and cURL will work if given the -k/--insecure option. Using your own certificate from a certificate authority will avoid these warnings.
 
+## Breaking Changes in 2.0.0
+
+- File uploads now respect the `--directory` option. Not doing so was a bug, and a security risk (since it could to the server root containing the server's certificate without the user realizing).
+- The `--token` option, if supplied, must be given a value. Not requiring a value was a bug, and a security risk (since a user could specify the token option but forget to provide a token).
+- Some internal refactoring was done to support creating extensions. This does not affect command line use.
+
 ## Breaking Changes in 1.0.0
 
 - File field in upload form renamed from `file_1` to `files`, to reflect support for multiple file upload. Scripts using cURL will need to be upadted with the new field name.
