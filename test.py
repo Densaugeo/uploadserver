@@ -72,6 +72,14 @@ class Suite(unittest.TestCase):
         
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content-replaced')
     
+    def test_upload_bad_path(self):
+        self.spawn_server()
+        
+        res = self.post('/uploadx', files={
+            'file_foo': ('a-file', 'file-content'),
+        })
+        self.assertEqual(res.status_code, 404)
+    
     # Test a malformed upload
     def test_upload_bad_field_name(self):
         self.spawn_server()
