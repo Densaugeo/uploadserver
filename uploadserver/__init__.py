@@ -107,37 +107,41 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
             http.server.CGIHTTPRequestHandler.do_POST(self)
 
 def ssl_wrap(socket):
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     server_root = pathlib.Path(args.directory).resolve()
     
-    if server_root in pathlib.Path(args.server_certificate).resolve().parents:
-        print('Server certificate \'{}\' is inside web server root \'{}\', exiting'.format(
-            args.server_certificate, server_root))
+    # Server certificate handling
+    server_certificate = pathlib.Path(args.server_certificate).resolve()
+    
+    if not server_certificate.is_file():
+        print('Server certificate "{}" not found, exiting'.format(server_certificate))
+        sys.exit(4)
+    
+    if server_root in server_certificate.parents:
+        print('Server certificate "{}" is inside web server root "{}", exiting'.format(server_certificate, server_root))
         sys.exit(3)
+    
+    context.load_cert_chain(certfile=server_certificate)
+    
     if args.client_certificate:
-        if server_root in pathlib.Path(args.client_certificate).resolve().parents:
-            print('Client certificate \'{}\' is inside web server root \'{}\', exiting'.format(
-                args.client_certificate, server_root))
+        # Client certificate handling
+        client_certificate = pathlib.Path(args.client_certificate).resolve()
+        
+        if not client_certificate.is_file():
+            print('Client certificate "{}" not found, exiting'.format(client_certificate))
+            sys.exit(4)
+        
+        if server_root in client_certificate.parents:
+            print('Client certificate "{}" is inside web server root "{}", exiting'.format(client_certificate, server_root))
             sys.exit(3)
     
-    try:
-        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        context.load_cert_chain(certfile=args.server_certificate)
-    except FileNotFoundError:
-        print('Server certificate \'{}\' not found, exiting'.format(args.server_certificate))
-        sys.exit(4)
-    
-    try:
-        if args.client_certificate:
-            context.load_verify_locations(cafile=args.client_certificate)
-            context.verify_mode = ssl.CERT_REQUIRED
-    except FileNotFoundError:
-        print('Client certificate \'{}\' not found, exiting'.format(args.client_certificate))
-        sys.exit(4)
+        context.load_verify_locations(cafile=client_certificate)
+        context.verify_mode = ssl.CERT_REQUIRED
     
     try:
         return context.wrap_socket(socket, server_side=True)
     except ssl.SSLError as e:
-        print('SSL error: {}, exiting'.format(e))
+        print('SSL error: "{}", exiting'.format(e))
         sys.exit(5)
 
 if sys.version_info.major == 3 and sys.version_info.minor < 8:
