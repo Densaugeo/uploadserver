@@ -91,6 +91,8 @@ Note: This uses a self-signed server certificate which clients such as web brows
 
 ## Acknowledgements
 
-Most of `main()` was copied from Python's `http.server`.
+Much of `main()` was copied from Python's `http.server`.
 
 Thanks to lishoujun for sending the first pull request! (Added the token option.)
+
+Thanks to NteRySin for several improvements including mTLS support and refactoring to support use by other modules.
