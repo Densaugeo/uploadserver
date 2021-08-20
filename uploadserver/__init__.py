@@ -1,4 +1,4 @@
-import http.server, http, cgi, pathlib, sys, argparse, ssl, os
+import http.server, http, cgi, pathlib, sys, argparse, ssl, os, builtins
 
 if sys.version_info.major > 3 or sys.version_info.minor >= 7:
     import functools
@@ -106,6 +106,15 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
         else:
             http.server.CGIHTTPRequestHandler.do_POST(self)
 
+def intercept_first_print():
+    if args.server_certificate:
+        # Use the right protocol in the first print call in case of HTTPS
+        old_print = builtins.print
+        def new_print(*args, **kwargs):
+            old_print(args[0].replace('HTTP', 'HTTPS').replace('http', 'https'), **kwargs)
+            builtins.print = old_print
+        builtins.print = new_print
+
 def ssl_wrap(socket):
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     server_root = pathlib.Path(args.directory).resolve()
@@ -144,71 +153,62 @@ def ssl_wrap(socket):
         print('SSL error: "{}", exiting'.format(e))
         sys.exit(5)
 
-if sys.version_info.major == 3 and sys.version_info.minor < 8:
-    from http.server import BaseHTTPRequestHandler
+def serve_forever():
+    # Verify arguments in case the method was called directly
+    assert hasattr(args, 'port') and type(args.port) is int
+    assert hasattr(args, 'cgi') and type(args.cgi) is bool
+    assert hasattr(args, 'bind')
+    assert hasattr(args, 'token')
+    assert hasattr(args, 'server_certificate')
+    assert hasattr(args, 'client_certificate')
+    assert hasattr(args, 'directory') and type(args.directory) is str
     
-    # The only difference in http.server.test() between Python 3.6 and 3.7 is the default value of ServerClass
-    if sys.version_info.minor < 7: from http.server import HTTPServer as DefaultHTTPServer
-    else: from http.server import ThreadingHTTPServer as DefaultHTTPServer
+    if args.cgi:
+        handler_class = CGIHTTPRequestHandler
+    elif sys.version_info.major == 3 and sys.version_info.minor < 7:
+        handler_class = SimpleHTTPRequestHandler
+    else:
+        handler_class = functools.partial(SimpleHTTPRequestHandler, directory=args.directory)
     
-    # Copy of http.server.test() from Python 3.7. ssl_wrap() call added and print statement updaed for HTTPS
-    def test(HandlerClass=BaseHTTPRequestHandler,
-             ServerClass=DefaultHTTPServer,
-             protocol="HTTP/1.0", port=8000, bind=""):
-        """Test the HTTP request handler class.
-        
-        This runs an HTTP server on port 8000 (or the port argument).
-        
-        """
-        server_address = (bind, port)
-        
-        HandlerClass.protocol_version = protocol
-        with ServerClass(server_address, HandlerClass) as httpd:
-            if args.server_certificate: httpd.socket = ssl_wrap(httpd.socket)
-            
-            sa = httpd.socket.getsockname()
-            serve_message = "Serving {proto} on {host} port {port} ({proto_lower}://{host}:{port}/) ..."
-            print(serve_message.format(host=sa[0], port=sa[1], proto=PROTOCOL, 
-                proto_lower=PROTOCOL.lower()))
-            try:
-                httpd.serve_forever()
-            except KeyboardInterrupt:
-                print("\nKeyboard interrupt received, exiting.")
-                sys.exit(0)
-else:
-    from http.server import BaseHTTPRequestHandler
-    from http.server import ThreadingHTTPServer
-    from http.server import _get_best_family
+    print('File upload available at /upload')
     
-    # Copy of http.server.test() from Python 3.8. ssl_wrap() call added and print statement updaed for HTTPS
-    def test(HandlerClass=BaseHTTPRequestHandler,
-             ServerClass=ThreadingHTTPServer,
-             protocol="HTTP/1.0", port=8000, bind=None):
-        """Test the HTTP request handler class.
+    if sys.version_info.major == 3 and sys.version_info.minor < 8:
+        # The only difference in http.server.test() between Python 3.6 and 3.7 is the default value of ServerClass
+        if sys.version_info.minor < 7:
+            from http.server import HTTPServer as DefaultHTTPServer
+        else:
+            from http.server import ThreadingHTTPServer as DefaultHTTPServer
         
-        This runs an HTTP server on port 8000 (or the port argument).
-        
-        """
-        ServerClass.address_family, addr = _get_best_family(bind, port)
-        
-        HandlerClass.protocol_version = protocol
-        with ServerClass(addr, HandlerClass) as httpd:
-            if args.server_certificate: httpd.socket = ssl_wrap(httpd.socket)
-            
-            host, port = httpd.socket.getsockname()[:2]
-            url_host = f'[{host}]' if ':' in host else host
-            print(
-                f"Serving {PROTOCOL} on {host} port {port} "
-                f"({PROTOCOL.lower()}://{url_host}:{port}/) ..."
-            )
-            try:
-                httpd.serve_forever()
-            except KeyboardInterrupt:
-                print("\nKeyboard interrupt received, exiting.")
-                sys.exit(0)
+        class CustomHTTPServer(DefaultHTTPServer):
+            def server_bind(self):
+                bind = super().server_bind()
+                if args.server_certificate:
+                    self.socket = ssl_wrap(self.socket)
+                return bind
+        server_class = CustomHTTPServer
+    else:
+        class DualStackServer(http.server.ThreadingHTTPServer):
+            def server_bind(self):
+                # suppress exception when protocol is IPv4
+                with contextlib.suppress(Exception):
+                    self.socket.setsockopt(
+                        socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+                bind = super().server_bind()
+                if args.server_certificate:
+                    self.socket = ssl_wrap(self.socket)
+                return bind
+        server_class = DualStackServer
+    
+    intercept_first_print()
+    http.server.test(
+        HandlerClass=handler_class,
+        ServerClass=server_class,
+        port=args.port,
+        bind=args.bind,
+    )
 
 def main():
-    global args, PROTOCOL
+    global args
     
     # In Python 3.8, http.server.test() was altered to use None instead of '' as the default for its bind parameter
     if sys.version_info.major == 3 and sys.version_info.minor < 8:
@@ -237,36 +237,5 @@ def main():
     
     args = parser.parse_args()
     if not hasattr(args, 'directory'): args.directory = os.getcwd()
-    PROTOCOL = 'HTTPS' if args.server_certificate else 'HTTP' # Just for log statements
     
-    if args.cgi:
-        handler_class = CGIHTTPRequestHandler
-    elif sys.version_info.major == 3 and sys.version_info.minor < 7:
-        handler_class = SimpleHTTPRequestHandler
-    else:
-        handler_class = functools.partial(SimpleHTTPRequestHandler, directory=args.directory)
-    
-    print('File upload available at /upload')
-    
-    # This was added to http.server's main section in Python 3.8
-    if sys.version_info.major == 3 and sys.version_info.minor < 8:
-        test(
-            HandlerClass=handler_class,
-            port=args.port,
-            bind=args.bind,
-        )
-    else:
-        class DualStackServer(http.server.ThreadingHTTPServer):
-            def server_bind(self):
-                # suppress exception when protocol is IPv4
-                with contextlib.suppress(Exception):
-                    self.socket.setsockopt(
-                        socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
-                return super().server_bind()
-        
-        test(
-            HandlerClass=handler_class,
-            ServerClass=DualStackServer,
-            port=args.port,
-            bind=args.bind,
-        )
+    serve_forever()
