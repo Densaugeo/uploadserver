@@ -1,5 +1,9 @@
 import http.server, http, cgi, pathlib, sys, argparse, ssl, os, builtins
 
+# Does not seem to do be used, but leaving this import out causes uploadserver to not receive IPv4 requests when
+# started with default options under Windows
+import socket 
+
 if sys.version_info.major > 3 or sys.version_info.minor >= 7:
     import functools
 
