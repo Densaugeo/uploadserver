@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='uploadserver',
-    version='2.0.0',
+    version='2.0.1',
     author='Densaugeo',
     author_email='author@example.com',
     description='Python\'s http.server extended to include a file upload page',
