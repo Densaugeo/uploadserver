@@ -42,6 +42,8 @@ package: uploadserver/__init__.py uploadserver/__main__.py LICENSE README.md set
 upload: dist/*
 	$(PY) -m pip install --user --upgrade twine
 	$(PY) -m twine upload dist/*
+	# Remove keyring, otherwise it will nag about passwords every time I use pip
+	$(PY) -m pip uninstall -y keyring
 
 clean:
 	rm -rf build dist uploadserver/__pycache__ uploadserver.egg-info __pycache__ test-temp server.pem client.pem client.crt
