@@ -287,11 +287,7 @@ class Suite(unittest.TestCase):
         if server_certificate: args += ['-c', server_certificate]
         if client_certificate: args += ['--client-certificate', client_certificate]
         
-        self.server = subprocess.Popen(
-            args,
-            stdout=None if VERBOSE else subprocess.DEVNULL,
-            stderr=None if VERBOSE else subprocess.DEVNULL,
-        )
+        self.server = subprocess.Popen(args)
         
         # Wait for server to finish starting
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
