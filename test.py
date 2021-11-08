@@ -290,15 +290,11 @@ class Suite(unittest.TestCase):
         self.server = subprocess.Popen(args)
         
         # Wait for server to finish starting
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         for _ in range(10):
             try:
-                time.sleep(0.1)
-                s.connect(('localhost', port or 8000))
-                s.close()
-                break
+                with socket.create_connection(('127.0.0.1', port or 8000)): break
             except ConnectionRefusedError:
-                pass
+                time.sleep(0.01)
         else:
             raise Exception('Port {} not responding. Did the server fail to start?'.format(port or 8000))
     
