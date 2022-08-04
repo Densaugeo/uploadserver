@@ -53,7 +53,7 @@ class Suite(unittest.TestCase):
         res = self.post('/upload', files={
             'files': ('a-file', 'file-content'),
         })
-        self.assertEqual(res.status_code, 204)
+        self.assertEqual(res.status_code, 201)
         
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
     
@@ -64,11 +64,11 @@ class Suite(unittest.TestCase):
         res = self.post('/upload', files={
             'files': ('a-file', 'file-content'),
         })
-        self.assertEqual(res.status_code, 204)
+        self.assertEqual(res.status_code, 201)
         res = self.post('/upload', files={
             'files': ('a-file', 'file-content-replaced'),
         })
-        self.assertEqual(res.status_code, 204)
+        self.assertEqual(res.status_code, 201)
         
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content-replaced')
     
@@ -97,7 +97,7 @@ class Suite(unittest.TestCase):
             ('files', ('file-1', 'file-content-1')),
             ('files', ('file-2', 'file-content-2')),
         ])
-        self.assertEqual(res.status_code, 204)
+        self.assertEqual(res.status_code, 201)
         
         with open('file-1') as f: self.assertEqual(f.read(), 'file-content-1')
         with open('file-2') as f: self.assertEqual(f.read(), 'file-content-2')
@@ -121,11 +121,11 @@ class Suite(unittest.TestCase):
             res = self.post('/upload', files={
                 'files': ('directory-file', 'file-content'),
             })
-            self.assertEqual(res.status_code, 204)
+            self.assertEqual(res.status_code, 201)
             
             with open('directory-option-test/directory-file') as f: self.assertEqual(f.read(), 'file-content')
     
-    # Verify uploads are accepted when the toekn option is used and the correct token is supplied
+    # Verify uploads are accepted when the token option is used and the correct token is supplied
     def test_token_valid(self):
         self.spawn_server(token='a-token')
         
@@ -134,7 +134,7 @@ class Suite(unittest.TestCase):
             'files': ('valid-token-upload', 'token-upload-content'),
             'token': (None, 'a-token'),
         })
-        self.assertEqual(res.status_code, 204)
+        self.assertEqual(res.status_code, 201)
         
         with open('valid-token-upload') as f: self.assertEqual(f.read(), 'token-upload-content')
     
@@ -170,7 +170,7 @@ class Suite(unittest.TestCase):
             res = self.post('/upload', cert='../client.pem', files={
                 'files': ('valid-client-cert-upload', 'client-cert-upload-content'),
             })
-            self.assertEqual(res.status_code, 204)
+            self.assertEqual(res.status_code, 201)
             
             with open('valid-client-cert-upload') as f: self.assertEqual(f.read(), 'client-cert-upload-content')
     

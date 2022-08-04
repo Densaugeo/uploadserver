@@ -74,7 +74,10 @@ def receive_upload(handler):
             with open(pathlib.Path(args.directory) / filename, 'wb') as f:
                 f.write(field.file.read())
                 handler.log_message('Upload of "{}" succeeded'.format(filename))
-                result = (http.HTTPStatus.CREATED, 'Upload of "{}" succeeded'.format(filename))
+                if result[0] == http.HTTPStatus.INTERNAL_SERVER_ERROR:
+                    result = (http.HTTPStatus.CREATED, 'Upload of "{}" succeeded'.format(filename))
+                else:
+                    result = (http.HTTPStatus.CREATED, result[1] + '<br/>Upload of "{}" succeeded'.format(filename))
     
     return result
 
@@ -106,8 +109,11 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
         if self.path == '/upload':
             result = receive_upload(self)
             if result[0] < http.HTTPStatus.BAD_REQUEST:
-                self.send_response(result[0], result[1])
+                self.send_response(result[0])
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', len(result[1]))
                 self.end_headers()
+                self.wfile.write(result[1].encode('utf8'))
             else:
                 self.send_error(result[0], result[1])
         else:
