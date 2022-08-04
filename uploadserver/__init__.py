@@ -73,8 +73,8 @@ def receive_upload(handler):
         if filename:
             with open(pathlib.Path(args.directory) / filename, 'wb') as f:
                 f.write(field.file.read())
-                handler.log_message('Upload of "{}" accepted'.format(filename))
-                result = (http.HTTPStatus.NO_CONTENT, None)
+                handler.log_message('Upload of "{}" succeeded'.format(filename))
+                result = (http.HTTPStatus.CREATED, 'Upload of "{}" succeeded'.format(filename))
     
     return result
 
@@ -87,8 +87,11 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/upload':
             result = receive_upload(self)
             if result[0] < http.HTTPStatus.BAD_REQUEST:
-                self.send_response(result[0], result[1])
+                self.send_response(result[0])
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', len(result[1]))
                 self.end_headers()
+                self.wfile.write(result[1].encode('utf8'))
             else:
                 self.send_error(result[0], result[1])
         else:
