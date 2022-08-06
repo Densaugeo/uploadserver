@@ -1,4 +1,4 @@
-import http.server, http, cgi, pathlib, sys, argparse, ssl, os, builtins
+import http.server, http, cgi, pathlib, sys, argparse, ssl, os, builtins, re
 
 # Does not seem to do be used, but leaving this import out causes uploadserver to not receive IPv4 requests when
 # started with default options under Windows
@@ -10,14 +10,19 @@ if sys.version_info.major > 3 or sys.version_info.minor >= 7:
 if sys.version_info.major > 3 or sys.version_info.minor >= 8:
     import contextlib
 
-UPLOAD_PAGE = open(pathlib.Path(__file__).parent / 'upload.html', 'rb').read()
+def get_upload_page(remove_css):
+    upload_page_string = open(pathlib.Path(__file__).parent / 'upload.html', 'rb').read().decode('utf8')
+    if remove_css:
+        return re.sub(r'<\s*style[^>]*>([\S\s]*?)<\s*\/\s*style>', '', upload_page_string).encode('utf8')
+    else:
+        return upload_page_string.encode('utf8')
 
 def send_upload_page(handler):
     handler.send_response(http.HTTPStatus.OK)
     handler.send_header('Content-Type', 'text/html; charset=utf-8')
-    handler.send_header('Content-Length', len(UPLOAD_PAGE))
+    handler.send_header('Content-Length', len(get_upload_page(args.no_dark_mode)))
     handler.end_headers()
-    handler.wfile.write(UPLOAD_PAGE)
+    handler.wfile.write(get_upload_page(args.no_dark_mode))
 
 def receive_upload(handler):
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Internal Server error')
@@ -140,6 +145,7 @@ def serve_forever():
     assert hasattr(args, 'cgi') and type(args.cgi) is bool
     assert hasattr(args, 'bind')
     assert hasattr(args, 'token')
+    assert hasattr(args, 'no_dark_mode')
     assert hasattr(args, 'server_certificate')
     assert hasattr(args, 'client_certificate')
     assert hasattr(args, 'directory') and type(args.directory) is str
@@ -206,6 +212,8 @@ def main():
         help='Specify alternate bind address [default: all interfaces]')
     parser.add_argument('--token', '-t', type=str,
         help='Specify alternate token [default: \'\']')
+    parser.add_argument('--no-dark-mode', action='store_true',
+        help='Disable dark mode for upload page [default: enabled]')
     parser.add_argument('--server-certificate', '--certificate', '-c',
         help='Specify HTTPS server certificate to use [default: none]')
     parser.add_argument('--client-certificate',
