@@ -10,33 +10,7 @@ if sys.version_info.major > 3 or sys.version_info.minor >= 7:
 if sys.version_info.major > 3 or sys.version_info.minor >= 8:
     import contextlib
 
-UPLOAD_PAGE = bytes('''<!DOCTYPE html>
-<html>
-<head>
-<title>File Upload</title>
-<meta name="viewport" content="width=device-width, user-scalable=no" />
-<style type="text/css">
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #000;
-    color: #fff;
-  }
-}
-</style>
-</head>
-<body onload="document.getElementsByName('token')[0].value=localStorage.token || ''">
-<h1>File Upload</h1>
-<form action="upload" method="POST" enctype="multipart/form-data">
-<input name="files" type="file" multiple />
-<br />
-<br />
-Token (only needed if server was started with token option): <input name="token" type="text" />
-<br />
-<br />
-<input type="submit" onclick="localStorage.token = document.getElementsByName('token')[0].value" />
-</form>
-</body>
-</html>''', 'utf-8')
+UPLOAD_PAGE = open(pathlib.Path(__file__).parent / 'upload.html', 'rb').read()
 
 def send_upload_page(handler):
     handler.send_response(http.HTTPStatus.OK)
@@ -46,11 +20,11 @@ def send_upload_page(handler):
     handler.wfile.write(UPLOAD_PAGE)
 
 def receive_upload(handler):
-    result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
+    result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Internal Server error')
     
     form = cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
     if 'files' not in form:
-        return (http.HTTPStatus.BAD_REQUEST, 'Field "files" not found')
+        return (http.HTTPStatus.BAD_REQUEST, 'No files uploaded')
     
     fields = form['files']
     if not isinstance(fields, list):
@@ -73,8 +47,11 @@ def receive_upload(handler):
         if filename:
             with open(pathlib.Path(args.directory) / filename, 'wb') as f:
                 f.write(field.file.read())
-                handler.log_message('Upload of "{}" accepted'.format(filename))
-                result = (http.HTTPStatus.NO_CONTENT, None)
+                handler.log_message('Upload of "{}" succeeded'.format(filename))
+                if result[0] == http.HTTPStatus.INTERNAL_SERVER_ERROR:
+                    result = (http.HTTPStatus.CREATED, 'Upload of "{}" succeeded'.format(filename))
+                else:
+                    result = (http.HTTPStatus.CREATED, result[1] + '\nUpload of "{}" succeeded'.format(filename))
     
     return result
 
@@ -86,11 +63,11 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/upload':
             result = receive_upload(self)
-            if result[0] < http.HTTPStatus.BAD_REQUEST:
-                self.send_response(result[0], result[1])
-                self.end_headers()
-            else:
-                self.send_error(result[0], result[1])
+            self.send_response(result[0])
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', len(result[1]))
+            self.end_headers()
+            self.wfile.write(result[1].encode('utf8'))
         else:
             self.send_error(http.HTTPStatus.NOT_FOUND, 'Can only POST to /upload')
 
@@ -102,11 +79,11 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/upload':
             result = receive_upload(self)
-            if result[0] < http.HTTPStatus.BAD_REQUEST:
-                self.send_response(result[0], result[1])
-                self.end_headers()
-            else:
-                self.send_error(result[0], result[1])
+            self.send_response(result[0])
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', len(result[1]))
+            self.end_headers()
+            self.wfile.write(result[1].encode('utf8'))
         else:
             http.server.CGIHTTPRequestHandler.do_POST(self)
 

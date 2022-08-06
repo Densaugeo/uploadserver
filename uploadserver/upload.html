@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>File Upload</title>
+        <meta name="viewport" content="width=device-width, user-scalable=no" />
+        <style type="text/css">
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background-color: #000;
+                    color: #fff;
+                }
+            }
+        </style>
+        <script type="text/javascript">
+            // Human-readable file size
+            Object.defineProperty(Number.prototype,"fileSize",{value:function(a,b,c,d){
+                    return (a=a?[1e3,"k","B"]:[1024,"K","iB"],b=Math,c=b.log,
+                    d=c(this)/c(a[0])|0,this/b.pow(a[0],d)).toFixed(2)
+                    +" "+(d?(a[1]+"MGTPEZY")[--d]+a[2]:"Bytes");
+                    },writable:false,enumerable:false});
+
+            function handleSubmit() {
+                document.getElementById("status").innerText = "Waiting for files to be transmitted…";
+                localStorage.token = document.getElementById("token").value;
+                const formData = new FormData();
+                let bodySizeApprox = 0;
+                Array.from(document.getElementById("files").files).forEach((file) => {
+                    formData.append("files", file);
+                    bodySizeApprox += file.size;
+                });
+                formData.append("token", document.getElementById("token").value);
+
+                const request = new XMLHttpRequest();
+
+                request.upload.addEventListener("progress", function (e) {
+                    document.getElementById("status").innerText = "Transmitting…";
+                    const percent = Math.min(100, Math.round(e.loaded / bodySizeApprox * 100));
+                    const progressElements = Math.min(25, Math.round(e.loaded / bodySizeApprox * 25));
+                    document.getElementById("progress").innerText = 
+                            "[" + 
+                            "#".repeat(progressElements) + 
+                            ".".repeat(25 - progressElements) + 
+                            `]\nProgress: ${percent} % ${e.loaded.fileSize()} / ${bodySizeApprox.fileSize()}`;
+                });   
+
+                request.open("POST", window.location.href);
+                request.timeout = 3600000;
+
+                request.onreadystatechange = function() {
+                    if (request.readyState == XMLHttpRequest.DONE) {
+                        document.getElementById("status").innerText = request.responseText;
+                        document.getElementById("progress").innerText = "";
+                    }
+                }
+
+                request.send(formData);
+            }
+        </script>
+    </head>
+<body onload="document.getElementById('token').value = localStorage.token || ''">
+    <h1>File Upload</h1>
+        <form action="javascript:handleSubmit()">
+            <input id="files" type="file" multiple />
+            <br />
+            <br />
+            Token (only needed if server was started with token option): <input id="token" type="text" />
+            <br />
+            <br />
+            <input type="submit" />
+        </form>
+        <p id="status"></p>
+        <p id="progress" style="font-family: monospace;"></p>
+    </body>
+</html>
