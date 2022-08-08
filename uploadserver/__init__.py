@@ -54,7 +54,10 @@ document.getElementsByTagName('form')[0].addEventListener('submit', e => {
   
   request.onreadystatechange = () => {
     if(request.readyState === XMLHttpRequest.DONE) {
-      document.getElementById('status').textContent = request.status < 400 ? 'Success' : `${request.status}: ${request.statusText}`
+      let message = `${request.status}: ${request.statusText}`
+      if(request.status === 204) message = 'Success'
+      if(request.status === 0) message = 'Connection failed'
+      document.getElementById('status').textContent = message
     }
   }
   
