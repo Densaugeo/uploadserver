@@ -24,7 +24,7 @@ UPLOAD_PAGE = bytes('''<!DOCTYPE html>
 }
 </style>
 </head>
-<body onload="document.getElementsByName('token')[0].value=localStorage.token || ''">
+<body>
 <h1>File Upload</h1>
 <form action="upload" method="POST" enctype="multipart/form-data">
 <input name="files" type="file" multiple />
@@ -33,9 +33,41 @@ UPLOAD_PAGE = bytes('''<!DOCTYPE html>
 Token (only needed if server was started with token option): <input name="token" type="text" />
 <br />
 <br />
-<input type="submit" onclick="localStorage.token = document.getElementsByName('token')[0].value" />
+<input type="submit" />
 </form>
+<p id="task"></p>
+<p id="status"></p>
 </body>
+<script>
+document.getElementsByName('token')[0].value=localStorage.token || ''
+
+document.getElementsByTagName('form')[0].addEventListener('submit', e => {
+  e.preventDefault()
+  
+  localStorage.token = e.target.token.value
+  
+  const formData = new FormData(e.target)
+  const filenames = formData.getAll('files').map(v => v.name).join(', ')
+  const request = new XMLHttpRequest()
+  request.open(e.target.method, e.target.action)
+  request.timeout = 3600000
+  
+  request.onreadystatechange = () => {
+    if(request.readyState === XMLHttpRequest.DONE) {
+      document.getElementById('status').textContent = request.status < 400 ? 'Success' : `${request.status}: ${request.statusText}`
+    }
+  }
+  
+  request.upload.onprogress = e => {
+    document.getElementById("status").textContent = `${Math.round(100*e.loaded/e.total)}%`
+  }
+  
+  request.send(formData)
+  
+  document.getElementById('task').textContent = `Uploading ${filenames}:`
+  document.getElementById('status').textContent = '0%'
+})
+</script>
 </html>''', 'utf-8')
 
 def send_upload_page(handler):
