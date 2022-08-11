@@ -42,7 +42,7 @@ curl -X POST http://127.0.0.1:8000/upload -F 'files=@token-example.txt' -F 'toke
 
 Uploads without the token will be rejected. Tokens can be stolen if sent in plain HTTP, so this option is best used with HTTPS.
 
-## Theme option
+## Theme Option
 
 The upload page supports a dark mode for showing white text on black background. If no option is specified, the color scheme is chosen from the client’s browser’s preference (which typically matches their operating system’s setting, if light or dark mode is supported by the OS). To enforce the light or dark theme, the CLI parameter `--theme` can be used:
 ~~~
@@ -52,6 +52,7 @@ or
 ~~~
 python3 -m uploadserver --theme dark
 ~~~
+
 ## HTTPS Option
 
 Run with HTTPS and without client authentication:
@@ -88,6 +89,10 @@ curl -X POST https://localhost:8000/upload --insecure --cert client.pem -F files
 
 Note: This uses a self-signed server certificate which clients such as web browser and cURL will warn about. Most browsers will allow you to proceed after adding an exception, and cURL will work if given the -k/--insecure option. Using your own certificate from a certificate authority will avoid these warnings.
 
+## Breaking Changes in 3.0.0
+
+- If `serve_forever` is called directly, such as by an extension, the `theme` field is now required on the arguments object. This change will not affect users who run this module unmodified.
+
 ## Breaking Changes in 2.0.0
 
 - File uploads now respect the `--directory` option. Not doing so was a bug, and a security risk (since it could to the server root containing the server's certificate without the user realizing).
@@ -106,3 +111,5 @@ Much of `main()` was copied from Python's `http.server`.
 Thanks to lishoujun for sending the first pull request! (Added the token option.)
 
 Thanks to NteRySin for several improvements including mTLS support and refactoring to support use by other modules.
+
+Thanks to marvinruder for work on the upload progress indicator and theme option.
