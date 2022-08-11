@@ -125,6 +125,30 @@ class Suite(unittest.TestCase):
             
             with open('directory-option-test/directory-file') as f: self.assertEqual(f.read(), 'file-content')
     
+    # There's no client-side testing to verify the theme or UI, but I can at least make sure the server runs
+    # when a theme is used
+    def test_with_theme_dark(self):
+        self.spawn_server(theme='dark')
+        
+        res = self.post('/upload', files={
+            'files': ('theme-dark-file', 'content-for-dark'),
+        })
+        self.assertEqual(res.status_code, 204)
+        
+        with open('theme-dark-file') as f: self.assertEqual(f.read(), 'content-for-dark')
+    
+    # There's no client-side testing to verify the theme or UI, but I can at least make sure the server runs
+    # when a theme is used
+    def test_with_theme_light(self):
+        self.spawn_server(theme='light')
+        
+        res = self.post('/upload', files={
+            'files': ('theme-light-file', 'content-for-light'),
+        })
+        self.assertEqual(res.status_code, 204)
+        
+        with open('theme-light-file') as f: self.assertEqual(f.read(), 'content-for-light')
+    
     # Verify uploads are accepted when the toekn option is used and the correct token is supplied
     def test_token_valid(self):
         self.spawn_server(token='a-token')
@@ -277,12 +301,13 @@ class Suite(unittest.TestCase):
             with open('mtls-example.txt') as f_actual, open('../test-files/mtls-example.txt') as f_expected:
                 self.assertEqual(f_actual.read(), f_expected.read())
     
-    def spawn_server(self, port=None, directory=None, token=None,
+    def spawn_server(self, port=None, directory=None, theme=None, token=None,
         server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None
     ):
         args = ['python3', '-u', '-m', 'uploadserver']
         if port: args += [str(port)]
         if directory: args += ['-d', directory]
+        if theme: args += ['--theme', theme]
         if token: args += ['-t', token]
         if server_certificate: args += ['-c', server_certificate]
         if client_certificate: args += ['--client-certificate', client_certificate]
