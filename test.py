@@ -149,7 +149,7 @@ class Suite(unittest.TestCase):
         
         with open('theme-light-file') as f: self.assertEqual(f.read(), 'content-for-light')
     
-    # Verify uploads are accepted when the toekn option is used and the correct token is supplied
+    # Verify uploads are accepted when the token option is used and the correct token is supplied
     def test_token_valid(self):
         self.spawn_server(token='a-token')
         
@@ -162,7 +162,7 @@ class Suite(unittest.TestCase):
         
         with open('valid-token-upload') as f: self.assertEqual(f.read(), 'token-upload-content')
     
-    # Verify uploads are rejected when the toekn option is used and an incorrect token is supplied
+    # Verify uploads are rejected when the token option is used and an incorrect token is supplied
     def test_token_invalid(self):
         self.spawn_server(token='a-token')
         
@@ -175,7 +175,7 @@ class Suite(unittest.TestCase):
         
         self.assertFalse(Path('invalid-token-upload').exists())
     
-    # Verify uploads are rejected when the toekn option is used and no token is supplied
+    # Verify uploads are rejected when the token option is used and no token is supplied
     def test_token_missing(self):
         self.spawn_server(token='a-token')
         
