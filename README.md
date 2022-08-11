@@ -42,6 +42,16 @@ curl -X POST http://127.0.0.1:8000/upload -F 'files=@token-example.txt' -F 'toke
 
 Uploads without the token will be rejected. Tokens can be stolen if sent in plain HTTP, so this option is best used with HTTPS.
 
+## Theme option
+
+The upload page supports a dark mode for showing white text on black background. If no option is specified, the color scheme is chosen from the client’s browser’s preference (which typically matches their operating system’s setting, if light or dark mode is supported by the OS). To enforce the light or dark theme, the CLI parameter `--theme` can be used:
+~~~
+python3 -m uploadserver --theme light
+~~~
+or
+~~~
+python3 -m uploadserver --theme dark
+~~~
 ## HTTPS Option
 
 Run with HTTPS and without client authentication:
