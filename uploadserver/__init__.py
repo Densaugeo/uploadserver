@@ -10,19 +10,31 @@ if sys.version_info.major > 3 or sys.version_info.minor >= 7:
 if sys.version_info.major > 3 or sys.version_info.minor >= 8:
     import contextlib
 
-UPLOAD_PAGE = bytes('''<!DOCTYPE html>
-<html>
-<head>
-<title>File Upload</title>
-<meta name="viewport" content="width=device-width, user-scalable=no" />
-<style type="text/css">
+CSS = {
+    'light': '',
+    'auto': '''<style type="text/css">
 @media (prefers-color-scheme: dark) {
   body {
     background-color: #000;
     color: #fff;
   }
 }
-</style>
+</style>''',
+    'dark': '''<style type="text/css">
+body {
+  background-color: #000;
+  color: #fff;
+}
+</style>'''
+}    
+
+def get_upload_page(theme):
+    return bytes('''<!DOCTYPE html>
+<html>
+<head>
+<title>File Upload</title>
+<meta name="viewport" content="width=device-width, user-scalable=no" />''' \
+    + CSS.get(theme) + '''
 </head>
 <body>
 <h1>File Upload</h1>
@@ -76,9 +88,9 @@ document.getElementsByTagName('form')[0].addEventListener('submit', e => {
 def send_upload_page(handler):
     handler.send_response(http.HTTPStatus.OK)
     handler.send_header('Content-Type', 'text/html; charset=utf-8')
-    handler.send_header('Content-Length', len(UPLOAD_PAGE))
+    handler.send_header('Content-Length', len(get_upload_page(args.theme)))
     handler.end_headers()
-    handler.wfile.write(UPLOAD_PAGE)
+    handler.wfile.write(get_upload_page(args.theme))
 
 def receive_upload(handler):
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
@@ -198,6 +210,7 @@ def serve_forever():
     assert hasattr(args, 'cgi') and type(args.cgi) is bool
     assert hasattr(args, 'bind')
     assert hasattr(args, 'token')
+    assert hasattr(args, 'theme')
     assert hasattr(args, 'server_certificate')
     assert hasattr(args, 'client_certificate')
     assert hasattr(args, 'directory') and type(args.directory) is str
@@ -264,6 +277,8 @@ def main():
         help='Specify alternate bind address [default: all interfaces]')
     parser.add_argument('--token', '-t', type=str,
         help='Specify alternate token [default: \'\']')
+    parser.add_argument('--theme', type=str, default='auto',
+        choices=['light', 'auto', 'dark'], help='Specify a light or dark theme for the upload page [default: auto]')
     parser.add_argument('--server-certificate', '--certificate', '-c',
         help='Specify HTTPS server certificate to use [default: none]')
     parser.add_argument('--client-certificate',
