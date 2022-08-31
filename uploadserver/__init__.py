@@ -74,7 +74,8 @@ document.getElementsByTagName('form')[0].addEventListener('submit', e => {
   }
   
   request.upload.onprogress = e => {
-    document.getElementById("status").textContent = `${Math.round(100*e.loaded/e.total)}%`
+    let message = e.loaded === e.total ? 'Saving...' : `${Math.floor(100*e.loaded/e.total)}%`
+    document.getElementById("status").textContent = message
   }
   
   request.send(formData)
