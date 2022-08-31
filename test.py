@@ -317,8 +317,14 @@ class Suite(unittest.TestCase):
         # Wait for server to finish starting
         for _ in range(10):
             try:
-                with socket.create_connection(('127.0.0.1', port or 8000)): break
-            except ConnectionRefusedError:
+                # This is stupid. Even if the server starts accepting connections, sometimes when it first starts
+                # it only accpets connections *some of the time*, so the connection must be tested several times
+                # to make sure it is really finished starting. 6 successes in a row appears to be the minimum to
+                # guarantee it is really up. 9 or more causes the server to respond slowly, but only if using HTTP
+                for _ in range(6):
+                    with socket.create_connection(('127.0.0.1', port or 8000)): pass
+                break
+            except (ConnectionRefusedError, ConnectionResetError):
                 time.sleep(0.01)
         else:
             raise Exception('Port {} not responding. Did the server fail to start?'.format(port or 8000))
