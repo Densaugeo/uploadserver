@@ -174,6 +174,7 @@ def ssl_wrap(socket):
     # Server certificate handling
     server_certificate = pathlib.Path(args.server_certificate).resolve()
 
+    # Private Key file existing
     privkey = None
     if args.privkey_file is not None:
         privkey = pathlib.Path(args.privkey_file).resolve()
@@ -186,6 +187,7 @@ def ssl_wrap(socket):
         print('Server certificate "{}" is inside web server root "{}", exiting'.format(server_certificate, server_root))
         sys.exit(3)
     
+    # Handling like HTTPS we treated. If keyfile is empty, keyfile is treated as none
     if privkey is not None:
         context.load_cert_chain(certfile=server_certificate, keyfile=privkey)
     else:
