@@ -175,9 +175,9 @@ def ssl_wrap(socket):
     server_certificate = pathlib.Path(args.server_certificate).resolve()
 
     # Private Key file existing
-    privkey = None
-    if args.privkey_file is not None:
-        privkey = pathlib.Path(args.privkey_file).resolve()
+    privatekey = None
+    if args.private_key is not None:
+        privatekey = pathlib.Path(args.private_key).resolve()
     
     if not server_certificate.is_file():
         print('Server certificate "{}" not found, exiting'.format(server_certificate))
@@ -188,8 +188,8 @@ def ssl_wrap(socket):
         sys.exit(3)
     
     # Handling like HTTPS we treated. If keyfile is empty, keyfile is treated as none
-    if privkey is not None:
-        context.load_cert_chain(certfile=server_certificate, keyfile=privkey)
+    if privatekey is not None:
+        context.load_cert_chain(certfile=server_certificate, keyfile=privatekey)
     else:
         context.load_cert_chain(certfile=server_certificate)
 
@@ -224,7 +224,7 @@ def serve_forever():
     assert hasattr(args, 'server_certificate')
     assert hasattr(args, 'client_certificate')
     assert hasattr(args, 'directory') and type(args.directory) is str
-    assert hasattr(args, 'privkey_file')
+    assert hasattr(args, 'private_key')
 
     
     if args.cgi:
@@ -295,7 +295,7 @@ def main():
         help='Specify HTTPS server certificate to use [default: none]')
     parser.add_argument('--client-certificate',
         help='Specify HTTPS client certificate to accept for mutual TLS [default: none]')
-    parser.add_argument('--privkey-file',
+    parser.add_argument('--private-key',
         help='Specify Server private key file for a real TLS connection [default: none]')
     
     # Directory option was added to http.server in Python 3.7
