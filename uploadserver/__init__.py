@@ -1,4 +1,5 @@
 import http.server, http, cgi, pathlib, sys, argparse, ssl, os, builtins
+import tempfile
 
 # Does not seem to do be used, but leaving this import out causes uploadserver to not receive IPv4 requests when
 # started with default options under Windows
@@ -74,7 +75,7 @@ document.getElementsByTagName('form')[0].addEventListener('submit', e => {
   }
   
   request.upload.onprogress = e => {
-    let message = e.loaded === e.total ? 'Saving...' : `${Math.floor(100*e.loaded/e.total)}%`
+    let message = e.loaded === e.total ? 'Saving...' : `${Math.floor(100*e.loaded/e.total)}% [${e.loaded >> 10} / ${e.total >> 10}KiB]`
     document.getElementById("status").textContent = message
   }
   
@@ -93,10 +94,19 @@ def send_upload_page(handler):
     handler.end_headers()
     handler.wfile.write(get_upload_page(args.theme))
 
+class PersistentFieldStorage(cgi.FieldStorage):
+    # override cgi.FieldStorage.make_file() method. Valid for Python 3.1 ~ 3.10
+    def make_file(self):
+        if self._binary_file:
+            return tempfile.NamedTemporaryFile(mode = 'wb+', dir = args.directory, delete = False)
+        else:
+            return tempfile.NamedTemporaryFile("w+", dir = args.directory, delete = False,
+                encoding = self.encoding, newline = '\n')
+
 def receive_upload(handler):
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
     
-    form = cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
+    form = PersistentFieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
     if 'files' not in form:
         return (http.HTTPStatus.BAD_REQUEST, 'Field "files" not found')
     
@@ -119,10 +129,21 @@ def receive_upload(handler):
                 continue # continue so if a multiple file upload is rejected, each file will be logged
         
         if filename:
-            with open(pathlib.Path(args.directory) / filename, 'wb') as f:
-                f.write(field.file.read())
-                handler.log_message('Upload of "{}" accepted'.format(filename))
-                result = (http.HTTPStatus.NO_CONTENT, None)
+            destination = pathlib.Path(args.directory) / filename
+            # TODO: consider auto rename if a file with the same name already exists.
+            # A bad user may overwrite your precious file with a bad one.
+            # Even you yourself may accidentally overwrite your precious file.
+            if hasattr(field.file, 'name'):
+                source = field.file.name
+                field.file.close()
+                if os.path.isfile(destination):
+                    os.remove(destination)
+                os.rename(source, destination)
+            else:  # class '_io.BytesIO', small file (< 1000B, in cgi.py), in-memory buffer.
+                with open(destination, 'wb') as f:
+                    f.write(field.file.read())
+            handler.log_message(f'[Uploaded] "{filename}" --> {destination}')
+            result = (http.HTTPStatus.NO_CONTENT, None)
     
     return result
 
