@@ -95,7 +95,8 @@ def send_upload_page(handler):
     handler.wfile.write(get_upload_page(args.theme))
 
 class PersistentFieldStorage(cgi.FieldStorage):
-    # override cgi.FieldStorage.make_file() method. Valid for Python 3.1 ~ 3.10
+    # Override cgi.FieldStorage.make_file() method. Valid for Python 3.1 ~ 3.10. Modified version of the original
+    # .make_file() method (base copied from Python 3.10)
     def make_file(self):
         if self._binary_file:
             return tempfile.NamedTemporaryFile(mode = 'wb+', dir = args.directory, delete = False)
