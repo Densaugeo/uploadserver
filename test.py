@@ -102,6 +102,19 @@ class Suite(unittest.TestCase):
         with open('file-1') as f: self.assertEqual(f.read(), 'file-content-1')
         with open('file-2') as f: self.assertEqual(f.read(), 'file-content-2')
     
+    # Uploads large enough to need a temp file have slightly different handling that needs to be tested
+    def test_large_upload(self):
+        self.spawn_server()
+        
+        file_content = 1024*'a' + 1024*'b' + 1024*'c' + 1024*'d'
+        
+        res = self.post('/upload', files={
+            'files': ('a-larger-file', file_content),
+        })
+        self.assertEqual(res.status_code, 204)
+        
+        with open('a-larger-file') as f: self.assertEqual(f.read(), file_content)
+    
     # Verify directory traversal attempts are contained within server folder
     def test_directory_traversal(self):
         self.spawn_server()
