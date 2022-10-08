@@ -113,3 +113,5 @@ Thanks to lishoujun for sending the first pull request! (Added the token option.
 Thanks to NteRySin for several improvements including mTLS support and refactoring to support use by other modules.
 
 Thanks to marvinruder for work on the upload progress indicator and theme option.
+
+Thanks to shuangye for finding an easy way to handle large file uploads.
