@@ -225,7 +225,6 @@ def serve_forever():
     assert hasattr(args, 'client_certificate')
     assert hasattr(args, 'directory') and type(args.directory) is str
     assert hasattr(args, 'private_key')
-
     
     if args.cgi:
         handler_class = CGIHTTPRequestHandler
