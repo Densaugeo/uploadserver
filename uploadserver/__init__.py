@@ -68,7 +68,7 @@ document.getElementsByTagName('form')[0].addEventListener('submit', e => {
   request.onreadystatechange = () => {
     if(request.readyState === XMLHttpRequest.DONE) {
       let message = `${request.status}: ${request.statusText}`
-      if(request.status === 204) message = 'Success'
+      if(request.status === 204) message = `Success. ${request.statusText}`
       if(request.status === 0) message = 'Connection failed'
       document.getElementById('status').textContent = message
     }
@@ -104,6 +104,16 @@ class PersistentFieldStorage(cgi.FieldStorage):
             return tempfile.NamedTemporaryFile("w+", dir = args.directory, delete = False,
                 encoding = self.encoding, newline = '\n')
 
+def auto_rename(path):
+    if not os.path.exists(path):
+        return path
+    (base, ext) = os.path.splitext(path)
+    for i in range(1, sys.maxsize):
+        renamed_path = f'{base} ({i}){ext}'
+        if not os.path.exists(renamed_path):
+            return renamed_path
+    raise FileExistsError(f'File {path} already exists.')
+
 def receive_upload(handler):
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
     
@@ -131,21 +141,22 @@ def receive_upload(handler):
         
         if filename:
             destination = pathlib.Path(args.directory) / filename
-            # TODO: consider auto rename if a file with the same name already exists.
-            # A bad user may overwrite your precious file with a bad one.
-            # Even you yourself may accidentally overwrite your precious file.
+            if os.path.exists(destination):
+                if args.allow_replace and os.path.isfile(destination):
+                    os.remove(destination)
+                else:
+                    destination = auto_rename(destination)
             if hasattr(field.file, 'name'):
                 source = field.file.name
                 field.file.close()
-                if os.path.isfile(destination):
-                    os.remove(destination)
                 os.rename(source, destination)
             else:  # class '_io.BytesIO', small file (< 1000B, in cgi.py), in-memory buffer.
                 with open(destination, 'wb') as f:
                     f.write(field.file.read())
             handler.log_message(f'[Uploaded] "{filename}" --> {destination}')
-            result = (http.HTTPStatus.NO_CONTENT, None)
-    
+            # do not expose dir to user for privacy:
+            result = (http.HTTPStatus.NO_CONTENT, f'File saved as {os.path.basename(destination)}')
+
     return result
 
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -231,6 +242,7 @@ def serve_forever():
     # Verify arguments in case the method was called directly
     assert hasattr(args, 'port') and type(args.port) is int
     assert hasattr(args, 'cgi') and type(args.cgi) is bool
+    assert hasattr(args, 'allow_replace') and type(args.allow_replace) is bool
     assert hasattr(args, 'bind')
     assert hasattr(args, 'token')
     assert hasattr(args, 'theme')
@@ -296,6 +308,8 @@ def main():
         help='Specify alternate port [default: 8000]')
     parser.add_argument('--cgi', action='store_true',
         help='Run as CGI Server')
+    parser.add_argument('--allow-replace', action='store_true', default=False,
+        help='Replace existing file if uploaded file has the same name. Auto rename by default.')
     parser.add_argument('--bind', '-b', default=bind_default, metavar='ADDRESS',
         help='Specify alternate bind address [default: all interfaces]')
     parser.add_argument('--token', '-t', type=str,

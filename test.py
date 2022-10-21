@@ -57,20 +57,45 @@ class Suite(unittest.TestCase):
         
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
     
-    # Verify uploads replace files of the same name
-    def test_upload_same_name(self):
+    # Verify auto rename uploaded file with the same name
+    def test_upload_same_name_default(self):
+        file_name = 'b-file'
+        file_renamed = f'{file_name} (1)'  # this is the auto-renaming pattern
+        if os.path.isfile(file_name): os.remove(file_name)
+        if os.path.isfile(file_renamed): os.remove(file_renamed)
+        
         self.spawn_server()
-        
+
         res = self.post('/upload', files={
-            'files': ('a-file', 'file-content'),
+            'files': (file_name, 'file-content'),
         })
         self.assertEqual(res.status_code, 204)
         res = self.post('/upload', files={
-            'files': ('a-file', 'file-content-replaced'),
+            'files': (file_name, 'file-content-same-name'),
         })
         self.assertEqual(res.status_code, 204)
         
-        with open('a-file') as f: self.assertEqual(f.read(), 'file-content-replaced')
+        with open(file_name) as f: self.assertEqual(f.read(), 'file-content')
+        with open(file_renamed) as f: self.assertEqual(f.read(), 'file-content-same-name')
+        
+    # Verify uploads replace existing file with the same name
+    def test_upload_same_name_replace(self):
+        file_name = 'c-file'
+        file_renamed = f'{file_name} (1)'  # this is the auto-renaming pattern
+        
+        self.spawn_server(allow_replace=True)
+
+        res = self.post('/upload', files={
+            'files': (file_name, 'file-content'),
+        })
+        self.assertEqual(res.status_code, 204)
+        res = self.post('/upload', files={
+            'files': (file_name, 'file-content-replaced'),
+        })
+        self.assertEqual(res.status_code, 204)
+
+        with open(file_name) as f: self.assertEqual(f.read(), 'file-content-replaced')
+        self.assertEqual(os.path.isfile(file_renamed), False)
     
     def test_upload_bad_path(self):
         self.spawn_server()
@@ -314,11 +339,12 @@ class Suite(unittest.TestCase):
             with open('mtls-example.txt') as f_actual, open('../test-files/mtls-example.txt') as f_expected:
                 self.assertEqual(f_actual.read(), f_expected.read())
     
-    def spawn_server(self, port=None, directory=None, theme=None, token=None,
+    def spawn_server(self, port=None, allow_replace=False, directory=None, theme=None, token=None,
         server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None
     ):
         args = ['python3', '-u', '-m', 'uploadserver']
         if port: args += [str(port)]
+        if allow_replace: args += ['--allow-replace']
         if directory: args += ['-d', directory]
         if theme: args += ['--theme', theme]
         if token: args += ['-t', token]
