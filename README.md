@@ -114,4 +114,4 @@ Thanks to NteRySin for several improvements including mTLS support and refactori
 
 Thanks to marvinruder for work on the upload progress indicator and theme option.
 
-Thanks to shuangye for finding an easy way to handle large file uploads.
+Thanks to shuangye for finding an easy way to handle large file uploads, and improved handling of filename collisions.
