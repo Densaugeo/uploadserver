@@ -116,6 +116,7 @@ def auto_rename(path):
 
 def receive_upload(handler):
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
+    name_conflict = False
     
     form = PersistentFieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
     if 'files' not in form:
@@ -146,6 +147,7 @@ def receive_upload(handler):
                     os.remove(destination)
                 else:
                     destination = auto_rename(destination)
+                    name_conflict = True
             if hasattr(field.file, 'name'):
                 source = field.file.name
                 field.file.close()
@@ -154,8 +156,7 @@ def receive_upload(handler):
                 with open(destination, 'wb') as f:
                     f.write(field.file.read())
             handler.log_message(f'[Uploaded] "{filename}" --> {destination}')
-            # do not expose dir to user for privacy:
-            result = (http.HTTPStatus.NO_CONTENT, f'File saved as {os.path.basename(destination)}')
+            result = (http.HTTPStatus.NO_CONTENT, 'Some filename(s) changed due to name conflict' if name_conflict else 'Files accepted')
 
     return result
 
