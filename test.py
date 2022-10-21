@@ -195,7 +195,13 @@ class Suite(unittest.TestCase):
             'token': (None, 'a-token'),
         })
         self.assertEqual(res.status_code, 204)
-        
+
+        # 'files' option is used for both files and other form data
+        res = self.post('/upload/validateToken', files={
+            'token': (None, 'a-token'),
+        })
+        self.assertEqual(res.status_code, 204)
+
         with open('valid-token-upload') as f: self.assertEqual(f.read(), 'token-upload-content')
     
     # Verify uploads are rejected when the token option is used and an incorrect token is supplied
@@ -205,6 +211,12 @@ class Suite(unittest.TestCase):
         # 'files' option is used for both files and other form data
         res = self.post('/upload', files={
             'files': ('invalid-token-upload', 'token-upload-content'),
+            'token': (None, 'a-bad-token'),
+        })
+        self.assertEqual(res.status_code, 403)
+
+        # 'files' option is used for both files and other form data
+        res = self.post('/upload/validateToken', files={
             'token': (None, 'a-bad-token'),
         })
         self.assertEqual(res.status_code, 403)
@@ -219,6 +231,10 @@ class Suite(unittest.TestCase):
         res = self.post('/upload', files={
             'files': ('missing-token-upload', 'token-upload-content'),
         })
+        self.assertEqual(res.status_code, 403)
+        
+        # 'files' option is used for both files and other form data
+        res = self.post('/upload/validateToken', files={})
         self.assertEqual(res.status_code, 403)
         
         self.assertFalse(Path('missing-token-upload').exists())
