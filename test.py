@@ -57,15 +57,13 @@ class Suite(unittest.TestCase):
         
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
     
-    # Verify auto rename uploaded file with the same name
+    # Verify uploaded file is renamed if there is a collision
     def test_upload_same_name_default(self):
         file_name = 'b-file'
         file_renamed = f'{file_name} (1)'  # this is the auto-renaming pattern
-        if os.path.isfile(file_name): os.remove(file_name)
-        if os.path.isfile(file_renamed): os.remove(file_renamed)
         
         self.spawn_server()
-
+        
         res = self.post('/upload', files={
             'files': (file_name, 'file-content'),
         })
@@ -84,7 +82,7 @@ class Suite(unittest.TestCase):
         file_renamed = f'{file_name} (1)'  # this is the auto-renaming pattern
         
         self.spawn_server(allow_replace=True)
-
+        
         res = self.post('/upload', files={
             'files': (file_name, 'file-content'),
         })
@@ -93,7 +91,7 @@ class Suite(unittest.TestCase):
             'files': (file_name, 'file-content-replaced'),
         })
         self.assertEqual(res.status_code, 204)
-
+        
         with open(file_name) as f: self.assertEqual(f.read(), 'file-content-replaced')
         self.assertEqual(os.path.isfile(file_renamed), False)
     
