@@ -58,31 +58,51 @@ document.getElementsByTagName('form')[0].addEventListener('submit', e => {
   e.preventDefault()
   
   localStorage.token = e.target.token.value
+
+  const tokenValidationFormData = new FormData()
+  tokenValidationFormData.append('token', e.target.token.value)
+  const tokenValidationRequest = new XMLHttpRequest()
+  tokenValidationRequest.open(e.target.method, e.target.action + '/validateToken')
   
-  const formData = new FormData(e.target)
-  const filenames = formData.getAll('files').map(v => v.name).join(', ')
-  const request = new XMLHttpRequest()
-  request.open(e.target.method, e.target.action)
-  request.timeout = 3600000
-  
-  request.onreadystatechange = () => {
-    if(request.readyState === XMLHttpRequest.DONE) {
-      let message = `${request.status}: ${request.statusText}`
-      if(request.status === 204) message = `Success. ${request.statusText}`
-      if(request.status === 0) message = 'Connection failed'
+  tokenValidationRequest.onreadystatechange = () => {
+    if (tokenValidationRequest.readyState === XMLHttpRequest.DONE) {
+      let message = `${tokenValidationRequest.status}: ${tokenValidationRequest.statusText}`
+      if (tokenValidationRequest.status === 0) message = 'Connection failed'
+      if (tokenValidationRequest.status === 204) message = `Success: ${tokenValidationRequest.statusText}`
       document.getElementById('status').textContent = message
+      if (tokenValidationRequest.status === 204) {
+        const uploadFormData = new FormData(e.target)
+        const filenames = uploadFormData.getAll('files').map(v => v.name).join(', ')
+        const uploadRequest = new XMLHttpRequest()
+        uploadRequest.open(e.target.method, e.target.action)
+        uploadRequest.timeout = 3600000
+        
+        uploadRequest.onreadystatechange = () => {
+          if (uploadRequest.readyState === XMLHttpRequest.DONE) {
+            let message = `${uploadRequest.status}: ${uploadRequest.statusText}`
+            if (uploadRequest.status === 204) message = `Success: ${uploadRequest.statusText}`
+            if (uploadRequest.status === 0) message = 'Connection failed'
+            document.getElementById('status').textContent = message
+          }
+        }
+        
+        uploadRequest.upload.onprogress = e => {
+          let message = e.loaded === e.total ? 'Saving…' : `${Math.floor(100*e.loaded/e.total)}% [${e.loaded >> 10} / ${e.total >> 10}KiB]`
+          document.getElementById("status").textContent = message
+        }
+        
+        uploadRequest.send(uploadFormData)
+        
+        document.getElementById('task').textContent = `Uploading ${filenames}:`
+        document.getElementById('status').textContent = '0%'
+      }
     }
   }
-  
-  request.upload.onprogress = e => {
-    let message = e.loaded === e.total ? 'Saving...' : `${Math.floor(100*e.loaded/e.total)}% [${e.loaded >> 10} / ${e.total >> 10}KiB]`
-    document.getElementById("status").textContent = message
-  }
-  
-  request.send(formData)
-  
-  document.getElementById('task').textContent = `Uploading ${filenames}:`
-  document.getElementById('status').textContent = '0%'
+
+  tokenValidationRequest.send(tokenValidationFormData)
+
+  document.getElementById('task').textContent = `Preparing to upload files:`
+  document.getElementById('status').textContent = 'Validating token…'
 })
 </script>
 </html>''', 'utf-8')
@@ -114,6 +134,21 @@ def auto_rename(path):
             return renamed_path
     raise FileExistsError(f'File {path} already exists.')
 
+def validate_token(handler):
+    form = PersistentFieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
+    if args.token:
+        # server started with token.
+        if 'token' not in form or form['token'].value == "":
+            # no token
+            handler.log_message('Token rejected (no token provided)')
+            return (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and you did not provide a token')
+        if form['token'].value != args.token:
+            # token error
+            handler.log_message('Token rejected (bad token)')
+            return (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and your token is wrong')
+        return (http.HTTPStatus.NO_CONTENT, 'Token validation successful (good token)')
+    return (http.HTTPStatus.NO_CONTENT, 'Token validation successful (no token required)')
+
 def receive_upload(handler):
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
     name_conflict = False
@@ -134,8 +169,13 @@ def receive_upload(handler):
         
         if args.token:
             # server started with token.
-            if 'token' not in form or form['token'].value != args.token:
-                # no token or token error
+            if 'token' not in form or form['token'].value == "":
+                # no token
+                handler.log_message('Upload of "{}" rejected (no token provided)'.format(filename))
+                result = (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and you did not provide a token')
+                continue # continue so if a multiple file upload is rejected, each file will be logged
+            elif form['token'].value != args.token:
+                # token error
                 handler.log_message('Upload of "{}" rejected (bad token)'.format(filename))
                 result = (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and your token is wrong')
                 continue # continue so if a multiple file upload is rejected, each file will be logged
@@ -166,7 +206,14 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         else: http.server.SimpleHTTPRequestHandler.do_GET(self)
     
     def do_POST(self):
-        if self.path == '/upload':
+        if self.path == '/upload/validateToken':
+            result = validate_token(self)
+            if result[0] < http.HTTPStatus.BAD_REQUEST:
+                self.send_response(result[0], result[1])
+                self.end_headers()
+            else:
+                self.send_error(result[0], result[1])
+        elif self.path == '/upload':
             result = receive_upload(self)
             if result[0] < http.HTTPStatus.BAD_REQUEST:
                 self.send_response(result[0], result[1])
@@ -182,7 +229,14 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
         else: http.server.CGIHTTPRequestHandler.do_GET(self)
     
     def do_POST(self):
-        if self.path == '/upload':
+        if self.path == '/upload/validateToken':
+            result = validate_token(self)
+            if result[0] < http.HTTPStatus.BAD_REQUEST:
+                self.send_response(result[0], result[1])
+                self.end_headers()
+            else:
+                self.send_error(result[0], result[1])
+        elif self.path == '/upload':
             result = receive_upload(self)
             if result[0] < http.HTTPStatus.BAD_REQUEST:
                 self.send_response(result[0], result[1])
