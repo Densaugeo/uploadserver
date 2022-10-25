@@ -62,42 +62,47 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
   const tokenValidationFormData = new FormData()
   tokenValidationFormData.append('token', e.target.token.value)
 
-  document.getElementById('task').textContent = `Preparing to upload files:`
-  document.getElementById('status').textContent = 'Validating token…'
-  const tokenValidationResponse = await fetch('/upload/validateToken', { method: 'POST', body: tokenValidationFormData})
-
-  if (tokenValidationResponse.ok) {
-    message = `Success: ${tokenValidationResponse.statusText}`
-    const uploadFormData = new FormData(e.target)
-    const filenames = uploadFormData.getAll('files').map(v => v.name).join(', ')
-    const uploadRequest = new XMLHttpRequest()
-    uploadRequest.open(e.target.method, e.target.action)
-    uploadRequest.timeout = 3600000
-    
-    uploadRequest.onreadystatechange = () => {
-      if (uploadRequest.readyState === XMLHttpRequest.DONE) {
-        let message = `${uploadRequest.status}: ${uploadRequest.statusText}`
-        if (uploadRequest.status === 204) message = `Success: ${uploadRequest.statusText}`
-        if (uploadRequest.status === 0) message = 'Connection failed'
-        document.getElementById('status').textContent = message
-      }
+  let tokenValidationResponse;
+  try {
+    tokenValidationResponse = await fetch('/upload/validateToken', { method: 'POST', body: tokenValidationFormData})
+  } catch (e) {
+    tokenValidationResponse = {
+      ok: false,
+      status: "Token validation unsuccessful",
+      statusText: e.message,
     }
-    
-    uploadRequest.upload.onprogress = e => {
-        let message = e.loaded === e.total ? 'Saving…' : `${Math.floor(100*e.loaded/e.total)}% [${e.loaded >> 10} / ${e.total >> 10}KiB]`
-        document.getElementById("status").textContent = message
-    }
-    
-    uploadRequest.send(uploadFormData)
-    
-    document.getElementById('task').textContent = `Uploading ${filenames}:`
-    document.getElementById('status').textContent = '0%'
-  } else {
-    let message = `${tokenValidationResponse.status}: ${tokenValidationResponse.statusText}`
-    if (tokenValidationResponse.status === 0) message = 'Connection failed'
-    document.getElementById('status').textContent = message
   }
 
+  if (!tokenValidationResponse.ok) {
+    let message = `${tokenValidationResponse.status}: ${tokenValidationResponse.statusText}`
+    document.getElementById('status').textContent = message
+    return
+  }
+  message = `Success: ${tokenValidationResponse.statusText}`
+  const uploadFormData = new FormData(e.target)
+  const filenames = uploadFormData.getAll('files').map(v => v.name).join(', ')
+  const uploadRequest = new XMLHttpRequest()
+  uploadRequest.open(e.target.method, e.target.action)
+  uploadRequest.timeout = 3600000
+  
+  uploadRequest.onreadystatechange = () => {
+    if (uploadRequest.readyState === XMLHttpRequest.DONE) {
+      let message = `${uploadRequest.status}: ${uploadRequest.statusText}`
+      if (uploadRequest.status === 204) message = `Success: ${uploadRequest.statusText}`
+      if (uploadRequest.status === 0) message = 'Connection failed'
+      document.getElementById('status').textContent = message
+    }
+  }
+    
+  uploadRequest.upload.onprogress = e => {
+    let message = e.loaded === e.total ? 'Saving…' : `${Math.floor(100*e.loaded/e.total)}% [${e.loaded >> 10} / ${e.total >> 10}KiB]`
+    document.getElementById("status").textContent = message
+  }
+
+  uploadRequest.send(uploadFormData)
+    
+  document.getElementById('task').textContent = `Uploading ${filenames}:`
+  document.getElementById('status').textContent = '0%'
 })
 </script>
 </html>''', 'utf-8')
@@ -136,7 +141,7 @@ def validate_token(handler):
         if 'token' not in form or form['token'].value != args.token:
             # no token or token error
             handler.log_message('Token rejected (bad token)')
-            return (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and your token is wrong')
+            return (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and your token is missing or wrong')
         return (http.HTTPStatus.NO_CONTENT, 'Token validation successful (good token)')
     return (http.HTTPStatus.NO_CONTENT, 'Token validation successful (no token required)')
 
@@ -163,7 +168,7 @@ def receive_upload(handler):
             if 'token' not in form or form['token'].value != args.token:
                 # no token or token error
                 handler.log_message('Upload of "{}" rejected (bad token)'.format(filename))
-                result = (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and your token is wrong')
+                result = (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and your token is missing or wrong')
                 continue # continue so if a multiple file upload is rejected, each file will be logged
         
         if filename:
