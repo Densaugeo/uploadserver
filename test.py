@@ -112,6 +112,14 @@ class Suite(unittest.TestCase):
         })
         self.assertEqual(res.status_code, 400)
     
+    def test_upload_no_files(self):
+        self.spawn_server()
+        
+        res = self.post('/upload', files={
+            'files': ('', ''),
+        })
+        self.assertEqual(res.status_code, 400)
+    
     # Verify multiple file upload works
     def test_multiple_upload(self):
         self.spawn_server()

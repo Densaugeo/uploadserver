@@ -157,6 +157,9 @@ def receive_upload(handler):
     if not isinstance(fields, list):
         fields = [fields]
     
+    if not all(field.file and field.filename for field in fields):
+        return (http.HTTPStatus.BAD_REQUEST, 'No files selected')
+    
     for field in fields:
         if field.file and field.filename:
             filename = pathlib.Path(field.filename).name
