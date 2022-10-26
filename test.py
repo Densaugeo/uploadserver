@@ -186,7 +186,17 @@ class Suite(unittest.TestCase):
         with open('theme-light-file') as f: self.assertEqual(f.read(), 'content-for-light')
     
     # Verify uploads are accepted when the token option is used and the correct token is supplied
-    def test_token_valid(self):
+    def test_token_valid_validate_endpoint(self):
+        self.spawn_server(token='a-token')
+
+        # 'files' option is used for both files and other form data
+        res = self.post('/upload/validateToken', files={
+            'token': (None, 'a-token'),
+        })
+        self.assertEqual(res.status_code, 204)
+
+    # Verify uploads are accepted when the token option is used and the correct token is supplied
+    def test_token_valid_upload_endpoint(self):
         self.spawn_server(token='a-token')
         
         # 'files' option is used for both files and other form data
@@ -195,11 +205,21 @@ class Suite(unittest.TestCase):
             'token': (None, 'a-token'),
         })
         self.assertEqual(res.status_code, 204)
-        
+
         with open('valid-token-upload') as f: self.assertEqual(f.read(), 'token-upload-content')
+
+    # Verify uploads are rejected when the token option is used and an incorrect token is supplied
+    def test_token_invalid_validate_endpoint(self):
+        self.spawn_server(token='a-token')
+        
+        # 'files' option is used for both files and other form data
+        res = self.post('/upload/validateToken', files={
+            'token': (None, 'a-bad-token'),
+        })
+        self.assertEqual(res.status_code, 403)
     
     # Verify uploads are rejected when the token option is used and an incorrect token is supplied
-    def test_token_invalid(self):
+    def test_token_invalid_upload_endpoint(self):
         self.spawn_server(token='a-token')
         
         # 'files' option is used for both files and other form data
@@ -212,7 +232,15 @@ class Suite(unittest.TestCase):
         self.assertFalse(Path('invalid-token-upload').exists())
     
     # Verify uploads are rejected when the token option is used and no token is supplied
-    def test_token_missing(self):
+    def test_token_missing_validate_endpoint(self):
+        self.spawn_server(token='a-token')
+        
+        # 'files' option is used for both files and other form data
+        res = self.post('/upload/validateToken', files={})
+        self.assertEqual(res.status_code, 403)
+
+    # Verify uploads are rejected when the token option is used and no token is supplied
+    def test_token_missing_upload_endpoint(self):
         self.spawn_server(token='a-token')
         
         # 'files' option is used for both files and other form data
@@ -222,7 +250,7 @@ class Suite(unittest.TestCase):
         self.assertEqual(res.status_code, 403)
         
         self.assertFalse(Path('missing-token-upload').exists())
-    
+
     if PROTOCOL == 'HTTPS':
         def test_client_cert_valid(self):
             self.spawn_server(client_certificate='../client.crt')
