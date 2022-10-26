@@ -27,7 +27,7 @@ body {
   color: #fff;
 }
 </style>'''
-}    
+}
 
 def get_upload_page(theme):
     return bytes('''<!DOCTYPE html>
@@ -58,10 +58,10 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
   e.preventDefault()
   
   localStorage.token = e.target.token.value
-
+  
   const tokenValidationFormData = new FormData()
   tokenValidationFormData.append('token', e.target.token.value)
-
+  
   let tokenValidationResponse;
   try {
     tokenValidationResponse = await fetch('/upload/validateToken', { method: 'POST', body: tokenValidationFormData})
@@ -72,7 +72,7 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
       statusText: e.message,
     }
   }
-
+  
   if (!tokenValidationResponse.ok) {
     let message = `${tokenValidationResponse.status}: ${tokenValidationResponse.statusText}`
     document.getElementById('status').textContent = message
@@ -93,14 +93,14 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
       document.getElementById('status').textContent = message
     }
   }
-    
+  
   uploadRequest.upload.onprogress = e => {
     let message = e.loaded === e.total ? 'Saving…' : `${Math.floor(100*e.loaded/e.total)}% [${e.loaded >> 10} / ${e.total >> 10}KiB]`
     document.getElementById("status").textContent = message
   }
-
+  
   uploadRequest.send(uploadFormData)
-    
+  
   document.getElementById('task').textContent = `Uploading ${filenames}:`
   document.getElementById('status').textContent = '0%'
 })
@@ -191,7 +191,7 @@ def receive_upload(handler):
                     f.write(field.file.read())
             handler.log_message(f'[Uploaded] "{filename}" --> {destination}')
             result = (http.HTTPStatus.NO_CONTENT, 'Some filename(s) changed due to name conflict' if name_conflict else 'Files accepted')
-
+    
     return result
 
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
