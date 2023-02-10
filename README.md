@@ -21,7 +21,7 @@ Accepts the same options as [http.server](https://docs.python.org/3/library/http
 
 After the server starts, the upload page is at /upload. For example, if the server is running at http://localhost:8000/ go to http://localhost:8000/upload .
 
-Warning: This is an upload server, and running it will allow uploads. Uploaded files will replace existing files with the same name.
+Warning: This is an upload server, and running it will allow uploads.
 
 Now supports uploading multiple files at once! Select multiple files in the web page's file selector, or upload with cURL:
 ~~~
