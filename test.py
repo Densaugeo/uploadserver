@@ -1,4 +1,5 @@
 import os, requests, unittest, subprocess, time, urllib3, socket, shutil, sys
+from requests.auth import HTTPBasicAuth
 from pathlib import Path
 
 assert 'VERBOSE' in os.environ, '$VERBOSE envionment variable not set'
@@ -9,6 +10,8 @@ VERBOSE = int(VERBOSE)
 assert 'PROTOCOL' in os.environ, '$PROTOCOL envionment variable not set'
 PROTOCOL = os.environ['PROTOCOL']
 assert PROTOCOL in ['HTTP', 'HTTPS'], 'Unknown $PROTOCOL: {}'.format(PROTOCOL)
+
+TEST_BASIC_AUTH = HTTPBasicAuth('foo', 'bar')
 
 def setUpModule():
     os.mkdir(Path(__file__).parent / 'test-temp')
@@ -51,6 +54,26 @@ class Suite(unittest.TestCase):
         self.spawn_server()
         
         res = self.post('/upload', files={
+            'files': ('a-file', 'file-content'),
+        })
+        self.assertEqual(res.status_code, 204)
+        
+        with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
+    
+    # Simple upload test with basic auth - failure
+    def test_basic_auth_upload_failure(self):
+        self.spawn_server(auth=TEST_BASIC_AUTH)
+        
+        res = self.post('/upload', files={
+            'files': ('a-file', 'file-content'),
+        })
+        self.assertEqual(res.status_code, 401)
+            
+    # Simple upload test with basic auth - succeeds
+    def test_basic_auth_upload_success(self):
+        self.spawn_server(auth=TEST_BASIC_AUTH)
+        
+        res = self.post('/upload', auth=TEST_BASIC_AUTH, files={
             'files': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 204)
@@ -374,7 +397,8 @@ class Suite(unittest.TestCase):
                 self.assertEqual(f_actual.read(), f_expected.read())
     
     def spawn_server(self, port=None, allow_replace=False, directory=None, theme=None, token=None,
-        server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None
+        server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None,
+        auth=None
     ):
         args = ['python3', '-u', '-m', 'uploadserver']
         if port: args += [str(port)]
@@ -384,6 +408,9 @@ class Suite(unittest.TestCase):
         if token: args += ['-t', token]
         if server_certificate: args += ['-c', server_certificate]
         if client_certificate: args += ['--client-certificate', client_certificate[1]]
+        if auth:
+            assert isinstance(auth, HTTPBasicAuth)
+            args += ['-u', f'{auth.username}:{auth.password}']
         
         self.server = subprocess.Popen(args)
         
