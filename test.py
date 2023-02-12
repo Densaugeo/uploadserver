@@ -261,7 +261,7 @@ class Suite(unittest.TestCase):
     
     if PROTOCOL == 'HTTPS':
         def test_client_cert_valid(self):
-            self.spawn_server(client_certificate='../client.crt')
+            self.spawn_server(client_certificate=('../client.pem', '../client.crt'))
             
             res = self.post('/upload', cert='../client.pem', files={
                 'files': ('valid-client-cert-upload', 'client-cert-upload-content'),
@@ -272,7 +272,7 @@ class Suite(unittest.TestCase):
     
     if PROTOCOL == 'HTTPS':
         def test_client_cert_invalid(self):
-            self.spawn_server(client_certificate='../client.crt')
+            self.spawn_server(client_certificate=('../client.pem', '../client.crt'))
             
             self.assertRaises(requests.ConnectionError, lambda: self.post('/upload', cert='../server.pem', files={
                 'files': ('invalid-client-cert-upload', 'client-cert-upload-content')
@@ -282,7 +282,7 @@ class Suite(unittest.TestCase):
     
     if PROTOCOL == 'HTTPS':
         def test_client_cert_missing(self):
-            self.spawn_server(client_certificate='../client.crt')
+            self.spawn_server(client_certificate=('../client.pem', '../client.crt'))
             
             self.assertRaises(requests.ConnectionError, lambda: self.post('/upload', files={
                 'files': ('missing-client-cert-upload', 'client-cert-upload-content'),
@@ -359,7 +359,7 @@ class Suite(unittest.TestCase):
     if PROTOCOL == 'HTTPS':
         # Verify example curl command with mTLS works
         def test_curl_mtls_example(self):
-            self.spawn_server(client_certificate='../client.crt')
+            self.spawn_server(client_certificate=('../client.pem', '../client.crt'))
             
             result = subprocess.run([
                     'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
@@ -383,21 +383,18 @@ class Suite(unittest.TestCase):
         if theme: args += ['--theme', theme]
         if token: args += ['-t', token]
         if server_certificate: args += ['-c', server_certificate]
-        if client_certificate: args += ['--client-certificate', client_certificate]
+        if client_certificate: args += ['--client-certificate', client_certificate[1]]
         
         self.server = subprocess.Popen(args)
         
         # Wait for server to finish starting
         for _ in range(10):
             try:
-                # This is stupid. Even if the server starts accepting connections, sometimes when it first starts
-                # it only accpets connections *some of the time*, so the connection must be tested several times
-                # to make sure it is really finished starting. 6 successes in a row appears to be the minimum to
-                # guarantee it is really up. 9 or more causes the server to respond slowly, but only if using HTTP
-                for _ in range(6):
-                    with socket.create_connection(('127.0.0.1', port or 8000)): pass
+                self.get('/', port=port or 8000,
+                    cert=client_certificate[0] if client_certificate else None
+                )
                 break
-            except (ConnectionRefusedError, ConnectionResetError):
+            except requests.exceptions.ConnectionError:
                 time.sleep(0.01)
         else:
             raise Exception('Port {} not responding. Did the server fail to start?'.format(port or 8000))
