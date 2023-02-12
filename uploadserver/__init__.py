@@ -194,12 +194,30 @@ def receive_upload(handler):
     
     return result
 
+def check_http_authentication(handler):
+    if not args.auth:
+        return True
+
+    expected_auth_header = f"Basic {1}"
+    auth_header = handler.headers.get('Authorization', None)
+    if auth_header is None or auth_header != expected_auth_header:
+        handler.log_message(f'Got auth_header {auth_header}, expected {expected_auth_header}')
+
+        handler.send_response(401)
+        handler.send_header('WWW-Authenticate', 'Basic realm="uploadserver"')
+        handler.end_headers()
+        return False
+    else:
+        return True
+
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
+        if not check_http_authentication(self): return
         if self.path == '/upload': send_upload_page(self)
         else: http.server.SimpleHTTPRequestHandler.do_GET(self)
     
     def do_POST(self):
+        if not check_http_authentication(self): return
         if self.path in ['/upload', '/upload/validateToken']:
             if self.path == '/upload/validateToken':
                 result = validate_token(self)
@@ -215,10 +233,12 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
     def do_GET(self):
+        if not check_http_authentication(self): return
         if self.path == '/upload': send_upload_page(self)
         else: http.server.CGIHTTPRequestHandler.do_GET(self)
     
     def do_POST(self):
+        if not check_http_authentication(self): return
         if self.path in ['/upload', '/upload/validateToken']:
             if self.path == '/upload/validateToken':
                 result = validate_token(self)
@@ -361,6 +381,8 @@ def main():
         help='Specify HTTPS server certificate to use [default: none]')
     parser.add_argument('--client-certificate',
         help='Specify HTTPS client certificate to accept for mutual TLS [default: none]')
+    parser.add_argument('-u', dest='auth',
+        help='Specify user:password to user for basic authentication (curl style)')
     
     # Directory option was added to http.server in Python 3.7
     if sys.version_info.major > 3 or sys.version_info.minor >= 7:
