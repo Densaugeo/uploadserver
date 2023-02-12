@@ -50,16 +50,16 @@ Note: The server cannot check the token until after a file has been transferred,
 python3 -m uploadserver --basic-auth hello:world
 ~~~
 
-Now you can upload a file with the token. For example:
+Now you can upload basic authentication. For example:
 ~~~
 curl -u hello:world http://127.0.0.1:8000/upload -F 'files=@basicauth-example.txt'
 ~~~
 
-Uploads without the authentication will be rejected. Basic authentication credentials can be stolen if sent in plain HTTP, so this option is best used with HTTPS.
+Uploads without authentication will be rejected. Note that basic authentication credentials can be stolen if sent over plain HTTP, so this option is best used with HTTPS.
 
-The server checks the credentials before it handles the body of the request, so this mode of operation is not susceptible to DoS mentioned above.
+The server checks credentials before it handles the body of the request, so this mode of operation is not susceptible to DoS attack mentioned in the previous section.
 
-Basic authentication protects both uploads and downloads.
+Unlike token authentication, basic authentication protects both uploads and downloads.
 
 ## Theme Option
 
