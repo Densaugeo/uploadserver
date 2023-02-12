@@ -44,6 +44,23 @@ Uploads without the token will be rejected. Tokens can be stolen if sent in plai
 
 Note: The server cannot check the token until after a file has been transferred, due to the way HTML form uploads are formatted, which creates a DoS vulnerability. If this is a concern, use mTLS for client authentication instead of relying on tokens.
 
+## Basic Authentication
+
+~~~
+python3 -m uploadserver --basic-auth hello:world
+~~~
+
+Now you can upload a file with the token. For example:
+~~~
+curl -u hello:world http://127.0.0.1:8000/upload -F 'files=@basicauth-example.txt'
+~~~
+
+Uploads without the authentication will be rejected. Basic authentication credentials can be stolen if sent in plain HTTP, so this option is best used with HTTPS.
+
+The server checks the credentials before it handles the body of the request, so this mode of operation is not susceptible to DoS mentioned above.
+
+Basic authentication protects both uploads and downloads.
+
 ## Theme Option
 
 The upload page supports a dark mode for showing white text on black background. If no option is specified, the color scheme is chosen from the client’s browser’s preference (which typically matches their operating system’s setting, if light or dark mode is supported by the OS). To enforce the light or dark theme, the CLI parameter `--theme` can be used:

@@ -1,3 +1,4 @@
+import base64
 import http.server, http, cgi, pathlib, sys, argparse, ssl, os, builtins
 import tempfile
 
@@ -194,21 +195,46 @@ def receive_upload(handler):
     
     return result
 
-def check_http_authentication(handler):
-    if not args.auth:
-        return True
-
-    expected_auth_header = f"Basic {1}"
-    auth_header = handler.headers.get('Authorization', None)
-    if auth_header is None or auth_header != expected_auth_header:
-        handler.log_message(f'Got auth_header {auth_header}, expected {expected_auth_header}')
-
-        handler.send_response(401)
-        handler.send_header('WWW-Authenticate', 'Basic realm="uploadserver"')
-        handler.end_headers()
+def check_http_authentication_header(handler):
+    """
+        This function should be called in at the beginning of HTTP method handler.
+        It valdiates Authorization header and sends back 401 response on failure.
+        It returns False if this happens.
+    """
+    auth_header = handler.headers.get('Authorization')
+    if auth_header is None:
         return False
-    else:
+
+    auth_header_words = auth_header.split(" ")
+    if len(auth_header_words) != 2:
+        return False
+
+    if auth_header_words[0].lower() != 'basic':
+        return False
+
+    http_username_password = base64.b64decode(auth_header_words[1]).decode()
+    http_username, http_password = http_username_password.split(':', 2)
+    args_username, args_password = args.basic_auth.split(':' ,2)
+    if http_username != args_username:
+        handler.log_message(f'Basic HTTP auth failed, got username "{http_username}" expected "{args_username}"')
+        return False
+    if http_password != args_password:
+        handler.log_message(f'Basic HTTP auth failed, bad password for user "{http_username}"')
+        return False
+    return True
+
+def check_http_authentication(handler):
+    if not args.basic_auth:
+        # authentication is not required
         return True
+
+    if check_http_authentication_header(handler):
+        return True
+
+    handler.send_response(401)
+    handler.send_header('WWW-Authenticate', 'Basic realm="uploadserver"')
+    handler.end_headers()
+    return False
 
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -381,7 +407,7 @@ def main():
         help='Specify HTTPS server certificate to use [default: none]')
     parser.add_argument('--client-certificate',
         help='Specify HTTPS client certificate to accept for mutual TLS [default: none]')
-    parser.add_argument('-u', dest='auth',
+    parser.add_argument('--basic-auth', dest='basic_auth',
         help='Specify user:password to user for basic authentication (curl style)')
     
     # Directory option was added to http.server in Python 3.7

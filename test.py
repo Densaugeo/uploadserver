@@ -12,6 +12,8 @@ PROTOCOL = os.environ['PROTOCOL']
 assert PROTOCOL in ['HTTP', 'HTTPS'], 'Unknown $PROTOCOL: {}'.format(PROTOCOL)
 
 TEST_BASIC_AUTH = HTTPBasicAuth('foo', 'bar')
+TEST_BASIC_AUTH_BAD_USER = HTTPBasicAuth('foo2', 'bar')
+TEST_BASIC_AUTH_BAD_PASS = HTTPBasicAuth('foo', 'bar2')
 
 def setUpModule():
     os.mkdir(Path(__file__).parent / 'test-temp')
@@ -60,26 +62,44 @@ class Suite(unittest.TestCase):
         
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
     
-    # Simple upload test with basic auth - failure
-    def test_basic_auth_upload_failure(self):
-        self.spawn_server(auth=TEST_BASIC_AUTH)
-        
+    # Simple upload test with basic auth - failure no auth
+    def test_basic_auth_upload_failure_noauth(self):
+        self.spawn_server(basic_auth=TEST_BASIC_AUTH)
+
         res = self.post('/upload', files={
             'files': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 401)
-            
+
+    # Simple upload test with basic auth - failure
+    def test_basic_auth_upload_failure_baduser(self):
+        self.spawn_server(basic_auth=TEST_BASIC_AUTH_BAD_USER)
+
+        res = self.post('/upload', files={
+            'files': ('a-file', 'file-content'),
+        })
+        self.assertEqual(res.status_code, 401)
+
+    # Simple upload test with basic auth - failure badpass
+    def test_basic_auth_upload_failure_badpass(self):
+        self.spawn_server(basic_auth=TEST_BASIC_AUTH_BAD_PASS)
+
+        res = self.post('/upload', files={
+            'files': ('a-file', 'file-content'),
+        })
+        self.assertEqual(res.status_code, 401)
+
     # Simple upload test with basic auth - succeeds
     def test_basic_auth_upload_success(self):
-        self.spawn_server(auth=TEST_BASIC_AUTH)
-        
+        self.spawn_server(basic_auth=TEST_BASIC_AUTH)
+
         res = self.post('/upload', auth=TEST_BASIC_AUTH, files={
             'files': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 204)
-        
+
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
-    
+
     # Verify uploaded file is renamed if there is a collision
     def test_upload_same_name_default(self):
         file_name = 'b-file'
@@ -398,7 +418,7 @@ class Suite(unittest.TestCase):
     
     def spawn_server(self, port=None, allow_replace=False, directory=None, theme=None, token=None,
         server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None,
-        auth=None
+        basic_auth=None
     ):
         args = ['python3', '-u', '-m', 'uploadserver']
         if port: args += [str(port)]
@@ -408,9 +428,9 @@ class Suite(unittest.TestCase):
         if token: args += ['-t', token]
         if server_certificate: args += ['-c', server_certificate]
         if client_certificate: args += ['--client-certificate', client_certificate[1]]
-        if auth:
-            assert isinstance(auth, HTTPBasicAuth)
-            args += ['-u', f'{auth.username}:{auth.password}']
+        if basic_auth:
+            assert isinstance(basic_auth, HTTPBasicAuth)
+            args += ['--basic-auth', f'{basic_auth.username}:{basic_auth.password}']
         
         self.server = subprocess.Popen(args)
         
