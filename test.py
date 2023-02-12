@@ -73,18 +73,18 @@ class Suite(unittest.TestCase):
 
     # Simple upload test with basic auth - failure
     def test_basic_auth_upload_failure_baduser(self):
-        self.spawn_server(basic_auth=TEST_BASIC_AUTH_BAD_USER)
+        self.spawn_server(basic_auth=TEST_BASIC_AUTH)
 
-        res = self.post('/upload', files={
+        res = self.post('/upload', auth=TEST_BASIC_AUTH_BAD_USER, files={
             'files': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 401)
 
     # Simple upload test with basic auth - failure badpass
     def test_basic_auth_upload_failure_badpass(self):
-        self.spawn_server(basic_auth=TEST_BASIC_AUTH_BAD_PASS)
+        self.spawn_server(basic_auth=TEST_BASIC_AUTH)
 
-        res = self.post('/upload', files={
+        res = self.post('/upload', auth=TEST_BASIC_AUTH_BAD_PASS, files={
             'files': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 401)
