@@ -1,4 +1,5 @@
 import os, requests, unittest, subprocess, time, urllib3, socket, shutil, sys
+from requests.auth import HTTPBasicAuth
 from pathlib import Path
 
 assert 'VERBOSE' in os.environ, '$VERBOSE envionment variable not set'
@@ -9,6 +10,10 @@ VERBOSE = int(VERBOSE)
 assert 'PROTOCOL' in os.environ, '$PROTOCOL envionment variable not set'
 PROTOCOL = os.environ['PROTOCOL']
 assert PROTOCOL in ['HTTP', 'HTTPS'], 'Unknown $PROTOCOL: {}'.format(PROTOCOL)
+
+TEST_BASIC_AUTH = HTTPBasicAuth('foo', 'bar')
+TEST_BASIC_AUTH_BAD_USER = HTTPBasicAuth('foo2', 'bar')
+TEST_BASIC_AUTH_BAD_PASS = HTTPBasicAuth('foo', 'bar2')
 
 def setUpModule():
     os.mkdir(Path(__file__).parent / 'test-temp')
@@ -56,7 +61,65 @@ class Suite(unittest.TestCase):
         self.assertEqual(res.status_code, 204)
         
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
+
+    # Basic auth on everything
+    def test_basic_auth(self):
+        self.spawn_server(basic_auth=TEST_BASIC_AUTH)
+        
+        # auth GET / - succeeds
+        res = self.get('/', auth=TEST_BASIC_AUTH)
+        self.assertEqual(res.status_code, 200)
     
+        # unauth GET / - fails
+        res = self.get('/')
+        self.assertEqual(res.status_code, 401)
+    
+        # baduser auth GET / - fails
+        res = self.get('/', auth=TEST_BASIC_AUTH_BAD_USER)
+        self.assertEqual(res.status_code, 401)
+    
+        # badpass auth GET / - fails
+        res = self.get('/', auth=TEST_BASIC_AUTH_BAD_PASS)
+        self.assertEqual(res.status_code, 401)
+    
+        self._test_basic_auth_upload()
+
+    # Basic auth on upload only
+    def test_basic_auth_upload(self):
+        self.spawn_server(basic_auth_upload=TEST_BASIC_AUTH)
+        
+        # unauth GET / - succeeds
+        res = self.get('/')
+        self.assertEqual(res.status_code, 200)
+
+        self._test_basic_auth_upload()
+    
+    def _test_basic_auth_upload(self):
+        # auth POST /upload - succeeds
+        res = self.post('/upload', auth=TEST_BASIC_AUTH, files={
+            'files': ('a-file', 'file-content'),
+        })
+        self.assertEqual(res.status_code, 204)
+        with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
+
+        # unauth POST /upload - fails
+        res = self.post('/upload', files={
+            'files': ('a-file', 'file-content'),
+        })
+        self.assertEqual(res.status_code, 401)
+
+        # baduser POST /upload - fails
+        res = self.post('/upload', auth=TEST_BASIC_AUTH_BAD_USER, files={
+            'files': ('a-file', 'file-content'),
+        })
+        self.assertEqual(res.status_code, 401)
+
+        # badpass POST /upload - fails
+        res = self.post('/upload', auth=TEST_BASIC_AUTH_BAD_PASS, files={
+            'files': ('a-file', 'file-content'),
+        })
+        self.assertEqual(res.status_code, 401)
+
     # Verify uploaded file is renamed if there is a collision
     def test_upload_same_name_default(self):
         file_name = 'b-file'
@@ -374,7 +437,8 @@ class Suite(unittest.TestCase):
                 self.assertEqual(f_actual.read(), f_expected.read())
     
     def spawn_server(self, port=None, allow_replace=False, directory=None, theme=None, token=None,
-        server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None
+        server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None,
+        basic_auth=None, basic_auth_upload=None
     ):
         args = ['python3', '-u', '-m', 'uploadserver']
         if port: args += [str(port)]
@@ -384,6 +448,12 @@ class Suite(unittest.TestCase):
         if token: args += ['-t', token]
         if server_certificate: args += ['-c', server_certificate]
         if client_certificate: args += ['--client-certificate', client_certificate[1]]
+        if basic_auth:
+            assert isinstance(basic_auth, HTTPBasicAuth)
+            args += ['--basic-auth', f'{basic_auth.username}:{basic_auth.password}']
+        if basic_auth_upload:
+            assert isinstance(basic_auth_upload, HTTPBasicAuth)
+            args += ['--basic-auth-upload', f'{basic_auth_upload.username}:{basic_auth_upload.password}']
         
         self.server = subprocess.Popen(args)
         
