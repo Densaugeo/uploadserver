@@ -44,13 +44,13 @@ Uploads without the token will be rejected. Tokens can be stolen if sent in plai
 
 Note: The server cannot check the token until after a file has been transferred, due to the way HTML form uploads are formatted, which creates a DoS vulnerability. If this is a concern, use mTLS for client authentication instead of relying on tokens.
 
-## Basic Authentication
+## Basic Authentication (downloads and uploads)
 
 ~~~
 python3 -m uploadserver --basic-auth hello:world
 ~~~
 
-Now you can upload basic authentication. For example:
+Now you can upload with basic authentication. For example:
 ~~~
 curl -u hello:world http://127.0.0.1:8000/upload -F 'files=@basicauth-example.txt'
 ~~~
@@ -59,7 +59,15 @@ Uploads without authentication will be rejected. Note that basic authentication 
 
 The server checks credentials before it handles the body of the request, so this mode of operation is not susceptible to DoS attack mentioned in the previous section.
 
-Unlike token authentication, basic authentication protects both uploads and downloads.
+## Basic Authentication (uploads only)
+
+~~~
+python3 -m uploadserver --basic-auth-upload hello:world
+~~~
+
+The same as above, but authentication is only required for upload operations.
+
+If both --basic-auth and --basic-auth-upload are specified, first one will be used for downloads and the second one for uploads.
 
 ## Theme Option
 

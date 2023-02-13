@@ -61,44 +61,64 @@ class Suite(unittest.TestCase):
         self.assertEqual(res.status_code, 204)
         
         with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
-    
-    # Simple upload test with basic auth - failure no auth
-    def test_basic_auth_upload_failure_noauth(self):
-        self.spawn_server(basic_auth=TEST_BASIC_AUTH)
 
+    # Basic auth on everything
+    def test_basic_auth(self):
+        self.spawn_server(basic_auth=TEST_BASIC_AUTH)
+        
+        # auth GET / - succeeds
+        res = self.get('/', auth=TEST_BASIC_AUTH)
+        self.assertEqual(res.status_code, 200)
+    
+        # unauth GET / - fails
+        res = self.get('/')
+        self.assertEqual(res.status_code, 401)
+    
+        # baduser auth GET / - fails
+        res = self.get('/', auth=TEST_BASIC_AUTH_BAD_USER)
+        self.assertEqual(res.status_code, 401)
+    
+        # badpass auth GET / - fails
+        res = self.get('/', auth=TEST_BASIC_AUTH_BAD_PASS)
+        self.assertEqual(res.status_code, 401)
+    
+        self._test_basic_auth_upload()
+
+    # Basic auth on upload only
+    def test_basic_auth_upload(self):
+        self.spawn_server(basic_auth_upload=TEST_BASIC_AUTH)
+        
+        # unauth GET / - succeeds
+        res = self.get('/')
+        self.assertEqual(res.status_code, 200)
+
+        self._test_basic_auth_upload()
+    
+    def _test_basic_auth_upload(self):
+        # auth POST /upload - succeeds
+        res = self.post('/upload', auth=TEST_BASIC_AUTH, files={
+            'files': ('a-file', 'file-content'),
+        })
+        self.assertEqual(res.status_code, 204)
+        with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
+
+        # unauth POST /upload - fails
         res = self.post('/upload', files={
             'files': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 401)
 
-    # Simple upload test with basic auth - failure
-    def test_basic_auth_upload_failure_baduser(self):
-        self.spawn_server(basic_auth=TEST_BASIC_AUTH)
-
+        # baduser POST /upload - fails
         res = self.post('/upload', auth=TEST_BASIC_AUTH_BAD_USER, files={
             'files': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 401)
 
-    # Simple upload test with basic auth - failure badpass
-    def test_basic_auth_upload_failure_badpass(self):
-        self.spawn_server(basic_auth=TEST_BASIC_AUTH)
-
+        # badpass POST /upload - fails
         res = self.post('/upload', auth=TEST_BASIC_AUTH_BAD_PASS, files={
             'files': ('a-file', 'file-content'),
         })
         self.assertEqual(res.status_code, 401)
-
-    # Simple upload test with basic auth - succeeds
-    def test_basic_auth_upload_success(self):
-        self.spawn_server(basic_auth=TEST_BASIC_AUTH)
-
-        res = self.post('/upload', auth=TEST_BASIC_AUTH, files={
-            'files': ('a-file', 'file-content'),
-        })
-        self.assertEqual(res.status_code, 204)
-
-        with open('a-file') as f: self.assertEqual(f.read(), 'file-content')
 
     # Verify uploaded file is renamed if there is a collision
     def test_upload_same_name_default(self):
@@ -418,7 +438,7 @@ class Suite(unittest.TestCase):
     
     def spawn_server(self, port=None, allow_replace=False, directory=None, theme=None, token=None,
         server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None,
-        basic_auth=None
+        basic_auth=None, basic_auth_upload=None
     ):
         args = ['python3', '-u', '-m', 'uploadserver']
         if port: args += [str(port)]
@@ -431,6 +451,9 @@ class Suite(unittest.TestCase):
         if basic_auth:
             assert isinstance(basic_auth, HTTPBasicAuth)
             args += ['--basic-auth', f'{basic_auth.username}:{basic_auth.password}']
+        if basic_auth_upload:
+            assert isinstance(basic_auth_upload, HTTPBasicAuth)
+            args += ['--basic-auth-upload', f'{basic_auth_upload.username}:{basic_auth_upload.password}']
         
         self.server = subprocess.Popen(args)
         
