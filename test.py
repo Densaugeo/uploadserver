@@ -1,5 +1,5 @@
 import pytest, os, requests, subprocess, time, urllib3, shutil, sys
-from requests.auth import HTTPBasicAuth
+#from requests.auth import HTTPBasicAuth
 from pathlib import Path
 
 
@@ -12,9 +12,9 @@ assert 'PROTOCOL' in os.environ, '$PROTOCOL envionment variable not set'
 PROTOCOL = os.environ['PROTOCOL']
 assert PROTOCOL in ['HTTP', 'HTTPS'], 'Unknown $PROTOCOL: {}'.format(PROTOCOL)
 
-TEST_BASIC_AUTH = HTTPBasicAuth('foo', 'bar')
-TEST_BASIC_AUTH_BAD_USER = HTTPBasicAuth('foo2', 'bar')
-TEST_BASIC_AUTH_BAD_PASS = HTTPBasicAuth('foo', 'bar2')
+TEST_BASIC_AUTH = requests.auth.HTTPBasicAuth('foo', 'bar')
+TEST_BASIC_AUTH_BAD_USER = requests.auth.HTTPBasicAuth('foo2', 'bar')
+TEST_BASIC_AUTH_BAD_PASS = requests.auth.HTTPBasicAuth('foo', 'bar2')
 
 
 server_holder = [None]
@@ -73,63 +73,85 @@ def test_upload():
     
     with open('a-file') as f: assert f.read() == 'file-content'
 
-# Basic auth on everything
-def test_basic_auth():
+def test_basic_auth_get():
     spawn_server(basic_auth=TEST_BASIC_AUTH)
     
-    # auth GET / - succeeds
-    res = get('/', auth=TEST_BASIC_AUTH)
-    assert res.status_code == 200
-    
-    # unauth GET / - fails
-    res = get('/')
-    assert res.status_code == 401
-    
-    # baduser auth GET / - fails
-    res = get('/', auth=TEST_BASIC_AUTH_BAD_USER)
-    assert res.status_code == 401
-    
-    # badpass auth GET / - fails
-    res = get('/', auth=TEST_BASIC_AUTH_BAD_PASS)
-    assert res.status_code == 401
-    
-    _test_basic_auth_upload()
+    assert get('/', auth=TEST_BASIC_AUTH).status_code == 200
 
-# Basic auth on upload only
-def test_basic_auth_upload():
+def test_basic_auth_get_no_credentials():
+    spawn_server(basic_auth=TEST_BASIC_AUTH)
+    
+    assert get('/').status_code == 401
+
+def test_basic_auth_get_bad_user():
+    spawn_server(basic_auth=TEST_BASIC_AUTH)
+    
+    assert get('/', auth=TEST_BASIC_AUTH_BAD_USER).status_code == 401
+
+def test_basic_auth_get_bad_pass():
+    spawn_server(basic_auth=TEST_BASIC_AUTH)
+    
+    assert get('/', auth=TEST_BASIC_AUTH_BAD_PASS).status_code == 401
+
+def test_basic_auth_get_upload_only():
     spawn_server(basic_auth_upload=TEST_BASIC_AUTH)
     
-    # unauth GET / - succeeds
-    res = get('/')
-    assert res.status_code == 200
-    
-    _test_basic_auth_upload()
+    assert get('/').status_code == 200
 
-def _test_basic_auth_upload():
-    # auth POST /upload - succeeds
-    res = post('/upload', auth=TEST_BASIC_AUTH, files={
-        'files': ('a-file', 'file-content'),
-    })
-    assert res.status_code == 204
+@pytest.mark.parametrize('condition', ['basic_auth', 'basic_auth_upload'])
+def test_basic_auth_post(condition):
+    spawn_server(**{ condition: TEST_BASIC_AUTH })
+    
+    assert post('/upload', auth=TEST_BASIC_AUTH, files={
+        'files': ('auth-file', 'file-content'),
+    }).status_code == 204
+    
     with open('a-file') as f: assert f.read() == 'file-content'
+
+@pytest.mark.parametrize('condition', ['basic_auth', 'basic_auth_upload'])
+def test_basic_auth_post_no_credentials(condition):
+    spawn_server(**{ condition: TEST_BASIC_AUTH })
     
-    # unauth POST /upload - fails
-    res = post('/upload', files={
-        'files': ('a-file', 'file-content'),
-    })
-    assert res.status_code == 401
+    assert post('/upload', files={
+        'files': ('unath-file', 'file-content'),
+    }).status_code == 401
     
-    # baduser POST /upload - fails
-    res = post('/upload', auth=TEST_BASIC_AUTH_BAD_USER, files={
-        'files': ('a-file', 'file-content'),
-    })
-    assert res.status_code == 401
+    assert not Path('unauth-file').exists()
+
+@pytest.mark.parametrize('condition', ['basic_auth', 'basic_auth_upload'])
+def test_basic_auth_post_bad_user(condition):
+    spawn_server(**{ condition: TEST_BASIC_AUTH })
     
-    # badpass POST /upload - fails
-    res = post('/upload', auth=TEST_BASIC_AUTH_BAD_PASS, files={
+    assert post('/upload', auth=TEST_BASIC_AUTH_BAD_USER, files={
         'files': ('a-file', 'file-content'),
-    })
-    assert res.status_code == 401
+    }).status_code == 401
+    
+    assert not Path('unauth-file').exists()
+    
+@pytest.mark.parametrize('condition', ['basic_auth', 'basic_auth_upload'])
+def test_basic_auth_post_bas_pass(condition):
+    spawn_server(**{ condition: TEST_BASIC_AUTH })
+    
+    assert post('/upload', auth=TEST_BASIC_AUTH_BAD_PASS, files={
+        'files': ('a-file', 'file-content'),
+    }).status_code == 401
+    
+    assert not Path('unauth-file').exists()
+
+def test_basic_auth_no_remnants():
+    spawn_server(basic_auth=TEST_BASIC_AUTH)
+    
+    with open('../test-files/token-remnant-bug.txt') as f:
+        # 'files' option is used for both files and other form data
+        assert post('/upload', files={
+            'files': ('token-remnant-bug.txt', f.read()),
+        }).status_code == 401
+    
+    assert not Path('token-remnant-bug.txt').exists()
+    
+    # Check for bug #29, in which a blocked upload left behind tmp files. Resolved by adding
+    # HTTP basic auth, which is not susceptible to this
+    assert next(Path('.').glob('tmp*'), None) is None
 
 # Verify uploaded file is renamed if there is a collision
 def test_upload_same_name_default():
@@ -453,8 +475,7 @@ if PROTOCOL == 'HTTPS':
 
 # Cannot be made into a fixture because fixture do not allow passing arguments in Python 3.6
 def spawn_server(port=None, allow_replace=False, directory=None, theme=None, token=None,
-    server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None,
-    basic_auth=None, basic_auth_upload=None
+    server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None, basic_auth=None, basic_auth_upload=None,
 ):
     args = ['python3', '-u', '-m', 'uploadserver']
     if port: args += [str(port)]
@@ -465,10 +486,8 @@ def spawn_server(port=None, allow_replace=False, directory=None, theme=None, tok
     if server_certificate: args += ['-c', server_certificate]
     if client_certificate: args += ['--client-certificate', client_certificate[1]]
     if basic_auth:
-        assert isinstance(basic_auth, HTTPBasicAuth)
         args += ['--basic-auth', f'{basic_auth.username}:{basic_auth.password}']
     if basic_auth_upload:
-        assert isinstance(basic_auth_upload, HTTPBasicAuth)
         args += ['--basic-auth-upload', f'{basic_auth_upload.username}:{basic_auth_upload.password}']
     
     server_holder[0] = subprocess.Popen(args)
