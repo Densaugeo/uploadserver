@@ -63,7 +63,7 @@ The same as above, but authentication is only required for upload operations.
 
 If both --basic-auth and --basic-auth-upload are specified, first one will be used for downloads and the second one for uploads.
 
-## Token Option (Deprecated, will be removed in future)
+## Token Option (deprecated, will be removed in future)
 
 Run with a simple token.
 ~~~

@@ -58,6 +58,10 @@ document.getElementsByName('token')[0].value=localStorage.token || ''
 document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
   e.preventDefault()
   
+  if(e.target.token.value) {
+    document.getElementById('deprecation-notice').textContent = 'NOTICE: Token will be deprecated in a future release, please configure the server to use the new HTTP basic auth options instead'
+  }
+  
   localStorage.token = e.target.token.value
   
   const tokenValidationFormData = new FormData()
@@ -66,7 +70,6 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
   let tokenValidationResponse;
   try {
     tokenValidationResponse = await fetch('/upload/validateToken', { method: 'POST', body: tokenValidationFormData})
-    document.getElementById('deprecation-notice').textContent = 'NOTICE: Token will be deprecated in a future release, please configure the server to use the new HTTP basic auth options instead'
   } catch (e) {
     tokenValidationResponse = {
       ok: false,
