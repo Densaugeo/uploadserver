@@ -5,6 +5,16 @@ Python's http.server extended to include a file upload page
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://mit-license.org/)
 [![Build Status](https://travis-ci.com/Densaugeo/uploadserver.svg?branch=master)](https://travis-ci.com/github/Densaugeo/uploadserver)
 
+## Supported Platforms
+
+| Platform | Supported? | Notes |
+|-|-|-|
+| Python 3.6+ | Yes | Tested on 3.6 through 3.11 every release. |
+| Python 3.5- | No | |
+| Linux | Yes | Tested on Fedora and Ubuntu every release. |
+| Windows | Yes | Occasional manual testing. Haven't noticed any obvious problems. |
+| Mac | No idea | I don't have a Mac. Idk if it works or not. |
+
 ## Installation
 
 ~~~
