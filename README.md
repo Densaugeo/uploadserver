@@ -38,22 +38,6 @@ Now supports uploading multiple files at once! Select multiple files in the web 
 curl -X POST http://127.0.0.1:8000/upload -F 'files=@multiple-example-1.txt' -F 'files=@multiple-example-2.txt'
 ~~~
 
-## Token Option
-
-Run with a simple token.
-~~~
-python3 -m uploadserver -t helloworld
-~~~
-
-Now you can upload a file with the token. For example:
-~~~
-curl -X POST http://127.0.0.1:8000/upload -F 'files=@token-example.txt' -F 'token=helloworld'
-~~~
-
-Uploads without the token will be rejected. Tokens can be stolen if sent in plain HTTP, so this option is best used with HTTPS.
-
-Note: The server cannot check the token until after a file has been transferred, due to the way HTML form uploads are formatted, which creates a DoS vulnerability. If this is a concern, use mTLS for client authentication instead of relying on tokens.
-
 ## Basic Authentication (downloads and uploads)
 
 ~~~
@@ -78,6 +62,22 @@ python3 -m uploadserver --basic-auth-upload hello:world
 The same as above, but authentication is only required for upload operations.
 
 If both --basic-auth and --basic-auth-upload are specified, first one will be used for downloads and the second one for uploads.
+
+## Token Option (Deprecated, will be removed in future)
+
+Run with a simple token.
+~~~
+python3 -m uploadserver -t helloworld
+~~~
+
+Now you can upload a file with the token. For example:
+~~~
+curl -X POST http://127.0.0.1:8000/upload -F 'files=@token-example.txt' -F 'token=helloworld'
+~~~
+
+Uploads without the token will be rejected. Tokens can be stolen if sent in plain HTTP, so this option is best used with HTTPS.
+
+Note: The server cannot check the token until after a file has been transferred, due to the way HTML form uploads are formatted, which creates a DoS vulnerability. If this is a concern, use mTLS for client authentication instead of relying on tokens.
 
 ## Theme Option
 
