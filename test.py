@@ -1,5 +1,4 @@
 import pytest, os, requests, subprocess, time, urllib3, shutil, sys
-#from requests.auth import HTTPBasicAuth
 from pathlib import Path
 
 
@@ -12,10 +11,10 @@ assert 'PROTOCOL' in os.environ, '$PROTOCOL envionment variable not set'
 PROTOCOL = os.environ['PROTOCOL']
 assert PROTOCOL in ['HTTP', 'HTTPS'], 'Unknown $PROTOCOL: {}'.format(PROTOCOL)
 
+
 TEST_BASIC_AUTH = requests.auth.HTTPBasicAuth('foo', 'bar')
 TEST_BASIC_AUTH_BAD_USER = requests.auth.HTTPBasicAuth('foo2', 'bar')
 TEST_BASIC_AUTH_BAD_PASS = requests.auth.HTTPBasicAuth('foo', 'bar2')
-
 
 server_holder = [None]
 
@@ -152,6 +151,19 @@ def test_basic_auth_no_remnants():
     # Check for bug #29, in which a blocked upload left behind tmp files. Resolved by adding
     # HTTP basic auth, which is not susceptible to this
     assert next(Path('.').glob('tmp*'), None) is None
+
+def test_cannot_enable_both_basic_auths():
+    certificate_arg = ['-c', '../server.pem'] if PROTOCOL == 'HTTPS' else None
+    
+    result = subprocess.run([
+            'python', '-m', 'uploadserver', '--basic-auth', 'user1:pass1',
+            '--basic-auth-upload', 'user2:pass2',
+        ],
+        stdout=None if VERBOSE else subprocess.DEVNULL,
+        stderr=None if VERBOSE else subprocess.DEVNULL,
+    )
+    
+    assert result.returncode == 6
 
 # Verify uploaded file is renamed if there is a collision
 def test_upload_same_name_default():
@@ -468,6 +480,23 @@ if PROTOCOL == 'HTTPS':
         
         with open('mtls-example.txt') as f_actual, open('../test-files/mtls-example.txt') as f_expected:
             assert f_actual.read() == f_expected.read()
+
+# Verify example curl command with HTTP basic auth works
+def test_http_basic_auth_example():
+    spawn_server(basic_auth=requests.auth.HTTPBasicAuth('hello', 'world'))
+    
+    result = subprocess.run([
+            'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
+            '--insecure', '-F', 'files=@../test-files/basic-auth-example.txt',
+            '-u', 'hello:world',
+        ],
+        stdout=None if VERBOSE else subprocess.DEVNULL,
+        stderr=None if VERBOSE else subprocess.DEVNULL,
+    )
+    assert result.returncode == 0
+    
+    with open('basic-auth-example.txt') as f_actual, open('../test-files/basic-auth-example.txt') as f_expected:
+        assert f_actual.read() == f_expected.read()
 
 ###########
 # Helpers #

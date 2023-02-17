@@ -1,7 +1,5 @@
-import base64
-import binascii
 import http.server, http, cgi, pathlib, sys, argparse, ssl, os, builtins
-import tempfile
+import tempfile, base64, binascii
 
 # Does not seem to do be used, but leaving this import out causes uploadserver to not receive IPv4 requests when
 # started with default options under Windows
@@ -50,6 +48,7 @@ Token (only needed if server was started with token option): <input name="token"
 <br />
 <input type="submit" />
 </form>
+<p id="deprecation-notice"></p>
 <p id="task"></p>
 <p id="status"></p>
 </body>
@@ -67,6 +66,7 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
   let tokenValidationResponse;
   try {
     tokenValidationResponse = await fetch('/upload/validateToken', { method: 'POST', body: tokenValidationFormData})
+    document.getElementById('deprecation-notice').textContent = 'NOTICE: Token will be deprecated in a future release, please configure the server to use the new HTTP basic auth options instead'
   } catch (e) {
     tokenValidationResponse = {
       ok: false,
@@ -78,6 +78,7 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
   if (!tokenValidationResponse.ok) {
     let message = `${tokenValidationResponse.status}: ${tokenValidationResponse.statusText}`
     document.getElementById('status').textContent = message
+    console.log(tokenValidationResponse)
     return
   }
   message = `Success: ${tokenValidationResponse.statusText}`
@@ -199,77 +200,63 @@ def receive_upload(handler):
 def check_http_authentication_header(handler, auth):
     auth_header = handler.headers.get('Authorization')
     if auth_header is None:
-        return False
-
-    auth_header_words = auth_header.split(" ")
+        return (False, 'No credentials given')
+    
+    auth_header_words = auth_header.split(' ')
     if len(auth_header_words) != 2:
-        return False
-
+        return (False, 'Credentials incorrectly formatted')
+    
     if auth_header_words[0].lower() != 'basic':
-        return False
-
+        return (False, 'Credentials incorrectly formatted')
+    
     try:
         http_username_password = base64.b64decode(auth_header_words[1]).decode()
     except binascii.Error:
-        handler.log_message(f'Base64 decoding of basic auth header failed')
-        return False
-
+        return (False, 'Credentials incorrectly formatted')
+    
     http_username, http_password = http_username_password.split(':', 2)
-    args_username, args_password = auth.split(':' ,2)
-    if http_username != args_username:
-        handler.log_message(f'Basic HTTP auth failed, got username "{http_username}" expected "{args_username}"')
-        return False
-    if http_password != args_password:
-        handler.log_message(f'Basic HTTP auth failed, bad password for user "{http_username}"')
-        return False
-    return True
+    args_username, args_password = auth.split(':', 2)
+    if http_username != args_username: return (False, 'Bad username')
+    if http_password != args_password: return (False, 'Bad password')
+    
+    return (True, None)
 
-def check_http_authentication(handler, is_upload):
+def check_http_authentication(handler):
     """
         This function should be called in at the beginning of HTTP method handler.
         It validates Authorization header and sends back 401 response on failure.
         It returns False if this happens.
     """
-    if is_upload:
-        if args.basic_auth_upload:
-            auth = args.basic_auth_upload
-        elif args.basic_auth:
-            auth = args.basic_auth
-        else:
-            # authentication is not required
-            return True
+    if handler.path in ['/upload', '/upload/validateToken']:
+        auth = args.basic_auth or args.basic_auth_upload
     else:
-        if args.basic_auth:
-            auth = args.basic_auth
-        else:
-            # authentication is not required for downloads
-            return True
-
-    if check_http_authentication_header(handler, auth):
-        return True
-
-    handler.send_response(401)
-    content = "Authentication is required"
-    body = content.encode('UTF-8', 'replace')
-    handler.send_header("Content-Type", handler.error_content_type)
-    handler.send_header('Content-Length', str(len(body)))
-    handler.send_header('WWW-Authenticate', 'Basic realm="uploadserver"')
-    handler.end_headers()
-    handler.wfile.write(body)
-
-    return False
+        auth = args.basic_auth
+    
+    # If no auth settings apply, check always passes
+    if not auth: return True
+    
+    valid, message = check_http_authentication_header(handler, auth)
+    
+    if not valid:
+        handler.log_message(f'Request rejected ({message})')
+        handler.send_response(http.HTTPStatus.UNAUTHORIZED, message)
+        handler.send_header('WWW-Authenticate', 'Basic realm="uploadserver"')
+        handler.end_headers()
+    
+    return valid
 
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
+        if not check_http_authentication(self): return
+        
         if self.path == '/upload':
-            if not check_http_authentication(self, is_upload=True): return
             send_upload_page(self)
         else:
-            if not check_http_authentication(self, is_upload=False): return
-            http.server.SimpleHTTPRequestHandler.do_GET(self)
+            super().do_GET()
     
     def do_POST(self):
-        if not check_http_authentication(self, is_upload=True): return
+        if not check_http_authentication(self): return
+        
         if self.path in ['/upload', '/upload/validateToken']:
             if self.path == '/upload/validateToken':
                 result = validate_token(self)
@@ -285,15 +272,16 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
     def do_GET(self):
+        if not check_http_authentication(self): return
+        
         if self.path == '/upload':
-            if not check_http_authentication(self, is_upload=True): return
             send_upload_page(self)
         else:
-            if not check_http_authentication(self, is_upload=False): return
-            http.server.CGIHTTPRequestHandler.do_GET(self)
+            super().do_GET()
     
     def do_POST(self):
-        if not check_http_authentication(self, is_upload=True): return
+        if not check_http_authentication(self): return
+        
         if self.path in ['/upload', '/upload/validateToken']:
             if self.path == '/upload/validateToken':
                 result = validate_token(self)
@@ -305,7 +293,7 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
             else:
                 self.send_error(result[0], result[1])
         else:
-            http.server.CGIHTTPRequestHandler.do_POST(self)
+            super().do_POST()
 
 def intercept_first_print():
     if args.server_certificate:
@@ -364,6 +352,8 @@ def serve_forever():
     assert hasattr(args, 'theme')
     assert hasattr(args, 'server_certificate')
     assert hasattr(args, 'client_certificate')
+    assert hasattr(args, 'basic_auth')
+    assert hasattr(args, 'basic_auth_upload')
     assert hasattr(args, 'directory') and type(args.directory) is str
     
     if args.cgi:
@@ -436,10 +426,10 @@ def main():
         help='Specify HTTPS server certificate to use [default: none]')
     parser.add_argument('--client-certificate',
         help='Specify HTTPS client certificate to accept for mutual TLS [default: none]')
-    parser.add_argument('--basic-auth', dest='basic_auth',
-        help='Specify user:password for basic authentication (downloads and uploads)')
-    parser.add_argument('--basic-auth-upload', dest='basic_auth_upload',
-        help='Specify user:password for basic authentication (uploads only)')
+    parser.add_argument('--basic-auth',
+        help='Specify user:pass for basic authentication (downloads and uploads)')
+    parser.add_argument('--basic-auth-upload',
+        help='Specify user:pass for basic authentication (uploads only)')
     
     # Directory option was added to http.server in Python 3.7
     if sys.version_info.major > 3 or sys.version_info.minor >= 7:
@@ -448,5 +438,13 @@ def main():
     
     args = parser.parse_args()
     if not hasattr(args, 'directory'): args.directory = os.getcwd()
+    
+    if args.token:
+        print('WARNING: Token will be deprecated in a future release, please use the new '
+            'HTTP basic auth options instead')
+    
+    if args.basic_auth and args.basic_auth_upload:
+        print('Cannot set both --basic--auth and --basic-auth-upload')
+        sys.exit(6)
     
     serve_forever()

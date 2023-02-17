@@ -52,7 +52,7 @@ python3 -m uploadserver --basic-auth hello:world
 
 Now you can upload with basic authentication. For example:
 ~~~
-curl -u hello:world http://127.0.0.1:8000/upload -F 'files=@basicauth-example.txt'
+curl -X POST http://127.0.0.1:8000/upload -F 'files=@basicauth-example.txt' -u hello:world
 ~~~
 
 Uploads without authentication will be rejected. Note that basic authentication credentials can be stolen if sent over plain HTTP, so this option is best used with HTTPS.
@@ -148,3 +148,5 @@ Thanks to NteRySin for several improvements including mTLS support and refactori
 Thanks to marvinruder for work on the upload progress indicator, theme option, and pre-validation of tokens before upload.
 
 Thanks to shuangye for finding an easy way to handle large file uploads, and improved handling of filename collisions.
+
+Thanks to abbbe for adding HTTP basic auth.
