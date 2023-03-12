@@ -271,7 +271,10 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 self.send_error(result[0], result[1])
         else:
-            self.send_error(http.HTTPStatus.NOT_FOUND, 'Can only POST to /upload')
+            self.send_error(http.HTTPStatus.NOT_FOUND, 'Can only POST/PUT to /upload')
+    
+    def do_PUT(self):
+        self.do_POST()
 
 class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
     def do_GET(self):
@@ -297,6 +300,9 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
                 self.send_error(result[0], result[1])
         else:
             super().do_POST()
+    
+    def do_PUT(self):
+        self.do_POST()
 
 def intercept_first_print():
     if args.server_certificate:

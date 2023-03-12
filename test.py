@@ -72,6 +72,16 @@ def test_upload():
     
     with open('a-file') as f: assert f.read() == 'file-content'
 
+def test_upload_put():
+    spawn_server()
+    
+    res = put('/upload', files={
+        'files': ('put-file', 'file-content'),
+    })
+    assert res.status_code == 204
+    
+    with open('put-file') as f: assert f.read() == 'file-content'
+
 def test_basic_auth_get():
     spawn_server(basic_auth=TEST_BASIC_AUTH)
     
@@ -539,4 +549,8 @@ def get(path, port=8000, *args, **kwargs):
 
 def post(path, port=8000, *args, **kwargs):
     return requests.post('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), 
+        verify=False, *args, **kwargs)
+
+def put(path, port=8000, *args, **kwargs):
+    return requests.put('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), 
         verify=False, *args, **kwargs)
