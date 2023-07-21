@@ -275,17 +275,15 @@ def test_directory_traversal():
     with open('dt-name') as f: assert f.read() == 'dt-content'
     assert not Path('../dt-name').exists()
 
-# Directory option was added to http.server in Python 3.7
-if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
-    def test_upload_respects_directory():
-        spawn_server(directory='directory-option-test')
-        
-        res = post('/upload', files={
-            'files': ('directory-file', 'file-content'),
-        })
-        assert res.status_code == 204
-        
-        with open('directory-option-test/directory-file') as f: assert f.read() == 'file-content'
+def test_upload_respects_directory():
+    spawn_server(directory='directory-option-test')
+    
+    res = post('/upload', files={
+        'files': ('directory-file', 'file-content'),
+    })
+    assert res.status_code == 204
+    
+    with open('directory-option-test/directory-file') as f: assert f.read() == 'file-content'
 
 # There's no client-side testing to verify the theme or UI, but I can at least make sure the server runs
 # when a theme is used

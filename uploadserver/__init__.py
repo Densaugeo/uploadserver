@@ -1,15 +1,9 @@
 import http.server, http, cgi, pathlib, sys, argparse, ssl, os, builtins
-import tempfile, base64, binascii
+import tempfile, base64, binascii, functools, contextlib
 
 # Does not seem to do be used, but leaving this import out causes uploadserver to not receive IPv4 requests when
 # started with default options under Windows
-import socket 
-
-if sys.version_info.major > 3 or sys.version_info.minor >= 7:
-    import functools
-
-if sys.version_info.major > 3 or sys.version_info.minor >= 8:
-    import contextlib
+import socket
 
 CSS = {
     'light': '',
@@ -367,39 +361,22 @@ def serve_forever():
     
     if args.cgi:
         handler_class = CGIHTTPRequestHandler
-    elif sys.version_info.major == 3 and sys.version_info.minor < 7:
-        handler_class = SimpleHTTPRequestHandler
     else:
         handler_class = functools.partial(SimpleHTTPRequestHandler, directory=args.directory)
     
     print('File upload available at /upload')
     
-    if sys.version_info.major == 3 and sys.version_info.minor < 8:
-        # The only difference in http.server.test() between Python 3.6 and 3.7 is the default value of ServerClass
-        if sys.version_info.minor < 7:
-            from http.server import HTTPServer as DefaultHTTPServer
-        else:
-            from http.server import ThreadingHTTPServer as DefaultHTTPServer
-        
-        class CustomHTTPServer(DefaultHTTPServer):
-            def server_bind(self):
-                bind = super().server_bind()
-                if args.server_certificate:
-                    self.socket = ssl_wrap(self.socket)
-                return bind
-        server_class = CustomHTTPServer
-    else:
-        class DualStackServer(http.server.ThreadingHTTPServer):
-            def server_bind(self):
-                # suppress exception when protocol is IPv4
-                with contextlib.suppress(Exception):
-                    self.socket.setsockopt(
-                        socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
-                bind = super().server_bind()
-                if args.server_certificate:
-                    self.socket = ssl_wrap(self.socket)
-                return bind
-        server_class = DualStackServer
+    class DualStackServer(http.server.ThreadingHTTPServer):
+        def server_bind(self):
+            # suppress exception when protocol is IPv4
+            with contextlib.suppress(Exception):
+                self.socket.setsockopt(
+                    socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            bind = super().server_bind()
+            if args.server_certificate:
+                self.socket = ssl_wrap(self.socket)
+            return bind
+    server_class = DualStackServer
     
     intercept_first_print()
     http.server.test(
@@ -412,12 +389,6 @@ def serve_forever():
 def main():
     global args
     
-    # In Python 3.8, http.server.test() was altered to use None instead of '' as the default for its bind parameter
-    if sys.version_info.major == 3 and sys.version_info.minor < 8:
-        bind_default = ''
-    else:
-        bind_default = None
-    
     parser = argparse.ArgumentParser()
     parser.add_argument('port', type=int, default=8000, nargs='?',
         help='Specify alternate port [default: 8000]')
@@ -425,8 +396,10 @@ def main():
         help='Run as CGI Server')
     parser.add_argument('--allow-replace', action='store_true', default=False,
         help='Replace existing file if uploaded file has the same name. Auto rename by default.')
-    parser.add_argument('--bind', '-b', default=bind_default, metavar='ADDRESS',
+    parser.add_argument('--bind', '-b', metavar='ADDRESS',
         help='Specify alternate bind address [default: all interfaces]')
+    parser.add_argument('--directory', '-d', default=os.getcwd(),
+        help='Specify alternative directory [default:current directory]')
     parser.add_argument('--token', '-t', type=str,
         help='Specify alternate token [default: \'\']')
     parser.add_argument('--theme', type=str, default='auto',
@@ -439,11 +412,6 @@ def main():
         help='Specify user:pass for basic authentication (downloads and uploads)')
     parser.add_argument('--basic-auth-upload',
         help='Specify user:pass for basic authentication (uploads only)')
-    
-    # Directory option was added to http.server in Python 3.7
-    if sys.version_info.major > 3 or sys.version_info.minor >= 7:
-        parser.add_argument('--directory', '-d', default=os.getcwd(),
-            help='Specify alternative directory [default:current directory]')
     
     args = parser.parse_args()
     if not hasattr(args, 'directory'): args.directory = os.getcwd()
