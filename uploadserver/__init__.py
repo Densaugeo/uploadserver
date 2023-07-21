@@ -5,22 +5,10 @@ import tempfile, base64, binascii, functools, contextlib
 # started with default options under Windows
 import socket
 
-CSS = {
-    'light': '',
-    'auto': '''<style type="text/css">
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #000;
-    color: #fff;
-  }
-}
-</style>''',
-    'dark': '''<style type="text/css">
-body {
-  background-color: #000;
-  color: #fff;
-}
-</style>'''
+COLOR_SCHEME = {
+    'light': 'light',
+    'auto': 'light dark',
+    'dark': 'dark',
 }
 
 def get_upload_page(theme):
@@ -28,8 +16,8 @@ def get_upload_page(theme):
 <html>
 <head>
 <title>File Upload</title>
-<meta name="viewport" content="width=device-width, user-scalable=no" />''' \
-    + CSS.get(theme) + '''
+<meta name="viewport" content="width=device-width, user-scalable=no" />
+<meta name="color-scheme" content="''' + COLOR_SCHEME.get(theme) + '''">
 </head>
 <body>
 <h1>File Upload</h1>
