@@ -309,72 +309,6 @@ def test_with_theme_light():
     
     with open('theme-light-file') as f: assert f.read() == 'content-for-light'
 
-# Verify uploads are accepted when the token option is used and the correct token is supplied
-def test_token_valid_validate_endpoint():
-    spawn_server(token='a-token')
-    
-    # 'files' option is used for both files and other form data
-    res = post('/upload/validateToken', files={
-        'token': (None, 'a-token'),
-    })
-    assert res.status_code == 204
-
-# Verify uploads are accepted when the token option is used and the correct token is supplied
-def test_token_valid_upload_endpoint():
-    spawn_server(token='a-token')
-    
-    # 'files' option is used for both files and other form data
-    res = post('/upload', files={
-        'files': ('valid-token-upload', 'token-upload-content'),
-        'token': (None, 'a-token'),
-    })
-    assert res.status_code == 204
-    
-    with open('valid-token-upload') as f: assert f.read() == 'token-upload-content'
-
-# Verify uploads are rejected when the token option is used and an incorrect token is supplied
-def test_token_invalid_validate_endpoint():
-    spawn_server(token='a-token')
-    
-    # 'files' option is used for both files and other form data
-    res = post('/upload/validateToken', files={
-        'token': (None, 'a-bad-token'),
-    })
-    assert res.status_code == 403
-
-# Verify uploads are rejected when the token option is used and an incorrect token is supplied
-def test_token_invalid_upload_endpoint():
-    spawn_server(token='a-token')
-    
-    # 'files' option is used for both files and other form data
-    res = post('/upload', files={
-        'files': ('invalid-token-upload', 'token-upload-content'),
-        'token': (None, 'a-bad-token'),
-    })
-    assert res.status_code == 403
-    
-    assert not Path('invalid-token-upload').exists()
-
-# Verify uploads are rejected when the token option is used and no token is supplied
-def test_token_missing_validate_endpoint():
-    spawn_server(token='a-token')
-    
-    # 'files' option is used for both files and other form data
-    res = post('/upload/validateToken', files={})
-    assert res.status_code == 403
-
-# Verify uploads are rejected when the token option is used and no token is supplied
-def test_token_missing_upload_endpoint():
-    spawn_server(token='a-token')
-    
-    # 'files' option is used for both files and other form data
-    res = post('/upload', files={
-        'files': ('missing-token-upload', 'token-upload-content'),
-    })
-    assert res.status_code == 403
-    
-    assert not Path('missing-token-upload').exists()
-
 if PROTOCOL == 'HTTPS':
     def test_client_cert_valid():
         spawn_server(client_certificate=('../client.pem', '../client.crt'))
@@ -456,22 +390,6 @@ def test_curl_multiple_example():
     with open('multiple-example-2.txt') as f_actual, open('../test-files/multiple-example-2.txt') as f_expected:
         assert f_actual.read() == f_expected.read()
 
-# Verify example curl command with token works
-def test_curl_token_example():
-    spawn_server(token='helloworld')
-    
-    result = subprocess.run([
-            'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
-            '--insecure', '-F', 'files=@../test-files/token-example.txt', '-F', 'token=helloworld',
-        ],
-        stdout=None if VERBOSE else subprocess.DEVNULL,
-        stderr=None if VERBOSE else subprocess.DEVNULL,
-    )
-    assert result.returncode == 0
-    
-    with open('token-example.txt') as f_actual, open('../test-files/token-example.txt') as f_expected:
-        assert f_actual.read() == f_expected.read()
-
 if PROTOCOL == 'HTTPS':
     # Verify example curl command with mTLS works
     def test_curl_mtls_example():
@@ -511,7 +429,7 @@ def test_http_basic_auth_example():
 ###########
 
 # Cannot be made into a fixture because fixture do not allow passing arguments in Python 3.6
-def spawn_server(port=None, allow_replace=False, directory=None, theme=None, token=None,
+def spawn_server(port=None, allow_replace=False, directory=None, theme=None,
     server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None, basic_auth=None, basic_auth_upload=None,
 ):
     args = ['python3', '-u', '-m', 'uploadserver']
@@ -519,7 +437,6 @@ def spawn_server(port=None, allow_replace=False, directory=None, theme=None, tok
     if allow_replace: args += ['--allow-replace']
     if directory: args += ['-d', directory]
     if theme: args += ['--theme', theme]
-    if token: args += ['-t', token]
     if server_certificate: args += ['-c', server_certificate]
     if client_certificate: args += ['--client-certificate', client_certificate[1]]
     if basic_auth:

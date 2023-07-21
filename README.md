@@ -64,22 +64,6 @@ The same as above, but authentication is only required for upload operations.
 
 If both --basic-auth and --basic-auth-upload are specified, first one will be used for downloads and the second one for uploads.
 
-## Token Option (deprecated, will be removed in future)
-
-Run with a simple token.
-~~~
-python3 -m uploadserver -t helloworld
-~~~
-
-Now you can upload a file with the token. For example:
-~~~
-curl -X POST http://127.0.0.1:8000/upload -F 'files=@token-example.txt' -F 'token=helloworld'
-~~~
-
-Uploads without the token will be rejected. Tokens can be stolen if sent in plain HTTP, so this option is best used with HTTPS.
-
-Note: The server cannot check the token until after a file has been transferred, due to the way HTML form uploads are formatted, which creates a DoS vulnerability. If this is a concern, use mTLS for client authentication instead of relying on tokens.
-
 ## Theme Option
 
 The upload page supports a dark mode for showing white text on black background. If no option is specified, the color scheme is chosen from the client’s browser’s preference (which typically matches their operating system’s setting, if light or dark mode is supported by the OS). To enforce the light or dark theme, the CLI parameter `--theme` can be used:
@@ -127,6 +111,11 @@ curl -X POST https://localhost:8000/upload --insecure --cert client.pem -F files
 
 Note: This uses a self-signed server certificate which clients such as web browser and cURL will warn about. Most browsers will allow you to proceed after adding an exception, and cURL will work if given the -k/--insecure option. Using your own certificate from a certificate authority will avoid these warnings.
 
+## Breaking Changes in 5.0.0
+
+- Support for Python 3.6-7 dropped.
+- `--token` option removed (use `--basic-auth` or `--basic-auth-upload` instead).
+
 ## Breaking Changes in 4.0.0
 
 - By default, uploaded files which have the same name as an existing file are renamed. To restore the previous behavior of overwriting them, pass `--allowreplace`.
@@ -160,4 +149,4 @@ Thanks to marvinruder for work on the upload progress indicator, theme option, a
 
 Thanks to shuangye for finding an easy way to handle large file uploads, and improved handling of filename collisions.
 
-Thanks to abbbe for adding HTTP basic auth.
+Thanks to abbbe for adding HTTP basic auth (has now replaced the token option).

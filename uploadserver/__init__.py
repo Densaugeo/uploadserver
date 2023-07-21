@@ -37,48 +37,15 @@ def get_upload_page(theme):
 <input name="files" type="file" multiple />
 <br />
 <br />
-Token (only needed if server was started with token option): <input name="token" type="text" />
-<br />
-<br />
 <input type="submit" />
 </form>
-<p id="deprecation-notice"></p>
 <p id="task"></p>
 <p id="status"></p>
 </body>
 <script>
-document.getElementsByName('token')[0].value=localStorage.token || ''
-
 document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
   e.preventDefault()
   
-  if(e.target.token.value) {
-    document.getElementById('deprecation-notice').textContent = 'NOTICE: Token will be deprecated in a future release, please configure the server to use the new HTTP basic auth options instead'
-  }
-  
-  localStorage.token = e.target.token.value
-  
-  const tokenValidationFormData = new FormData()
-  tokenValidationFormData.append('token', e.target.token.value)
-  
-  let tokenValidationResponse;
-  try {
-    tokenValidationResponse = await fetch('/upload/validateToken', { method: 'POST', body: tokenValidationFormData})
-  } catch (e) {
-    tokenValidationResponse = {
-      ok: false,
-      status: "Token validation unsuccessful",
-      statusText: e.message,
-    }
-  }
-  
-  if (!tokenValidationResponse.ok) {
-    let message = `${tokenValidationResponse.status}: ${tokenValidationResponse.statusText}`
-    document.getElementById('status').textContent = message
-    console.log(tokenValidationResponse)
-    return
-  }
-  message = `Success: ${tokenValidationResponse.statusText}`
   const uploadFormData = new FormData(e.target)
   const filenames = uploadFormData.getAll('files').map(v => v.name).join(', ')
   const uploadRequest = new XMLHttpRequest()
@@ -134,17 +101,6 @@ def auto_rename(path):
             return renamed_path
     raise FileExistsError(f'File {path} already exists.')
 
-def validate_token(handler):
-    form = PersistentFieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
-    if args.token:
-        # server started with token.
-        if 'token' not in form or form['token'].value != args.token:
-            # no token or token error
-            handler.log_message('Token rejected (bad token)')
-            return (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and your token is missing or wrong')
-        return (http.HTTPStatus.NO_CONTENT, 'Token validation successful (good token)')
-    return (http.HTTPStatus.NO_CONTENT, 'Token validation successful (no token required)')
-
 def receive_upload(handler):
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
     name_conflict = False
@@ -165,14 +121,6 @@ def receive_upload(handler):
             filename = pathlib.Path(field.filename).name
         else:
             filename = None
-        
-        if args.token:
-            # server started with token.
-            if 'token' not in form or form['token'].value != args.token:
-                # no token or token error
-                handler.log_message('Upload of "{}" rejected (bad token)'.format(filename))
-                result = (http.HTTPStatus.FORBIDDEN, 'Token is enabled on this server, and your token is missing or wrong')
-                continue # continue so if a multiple file upload is rejected, each file will be logged
         
         if filename:
             destination = pathlib.Path(args.directory) / filename
@@ -224,7 +172,7 @@ def check_http_authentication(handler):
         It validates Authorization header and sends back 401 response on failure.
         It returns False if this happens.
     """
-    if handler.path in ['/upload', '/upload/validateToken']:
+    if handler.path == '/upload':
         auth = args.basic_auth or args.basic_auth_upload
     else:
         auth = args.basic_auth
@@ -254,11 +202,9 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         if not check_http_authentication(self): return
         
-        if self.path in ['/upload', '/upload/validateToken']:
-            if self.path == '/upload/validateToken':
-                result = validate_token(self)
-            elif self.path == '/upload':
-                result = receive_upload(self)
+        if self.path == '/upload':
+            result = receive_upload(self)
+            
             if result[0] < http.HTTPStatus.BAD_REQUEST:
                 self.send_response(result[0], result[1])
                 self.end_headers()
@@ -282,11 +228,9 @@ class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
     def do_POST(self):
         if not check_http_authentication(self): return
         
-        if self.path in ['/upload', '/upload/validateToken']:
-            if self.path == '/upload/validateToken':
-                result = validate_token(self)
-            elif self.path == '/upload':
-                result = receive_upload(self)
+        if self.path == '/upload':
+            result = receive_upload(self)
+            
             if result[0] < http.HTTPStatus.BAD_REQUEST:
                 self.send_response(result[0], result[1])
                 self.end_headers()
@@ -351,7 +295,6 @@ def serve_forever():
     assert hasattr(args, 'cgi') and type(args.cgi) is bool
     assert hasattr(args, 'allow_replace') and type(args.allow_replace) is bool
     assert hasattr(args, 'bind')
-    assert hasattr(args, 'token')
     assert hasattr(args, 'theme')
     assert hasattr(args, 'server_certificate')
     assert hasattr(args, 'client_certificate')
@@ -400,8 +343,6 @@ def main():
         help='Specify alternate bind address [default: all interfaces]')
     parser.add_argument('--directory', '-d', default=os.getcwd(),
         help='Specify alternative directory [default:current directory]')
-    parser.add_argument('--token', '-t', type=str,
-        help='Specify alternate token [default: \'\']')
     parser.add_argument('--theme', type=str, default='auto',
         choices=['light', 'auto', 'dark'], help='Specify a light or dark theme for the upload page [default: auto]')
     parser.add_argument('--server-certificate', '--certificate', '-c',
@@ -415,10 +356,6 @@ def main():
     
     args = parser.parse_args()
     if not hasattr(args, 'directory'): args.directory = os.getcwd()
-    
-    if args.token:
-        print('WARNING: Token will be deprecated in a future release, please use the new '
-            'HTTP basic auth options instead')
     
     if args.basic_auth and args.basic_auth_upload:
         print('Cannot set both --basic--auth and --basic-auth-upload')
