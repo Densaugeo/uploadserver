@@ -12,11 +12,14 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/Densaugeo/uploadserver',
-    packages=setuptools.find_packages(),
+    packages=['uploadserver'],
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.8',
+    entry_points = {
+        'console_scripts': ['uploadserver=uploadserver:main'],
+    }
 )
