@@ -1,9 +1,16 @@
-import http.server, http, cgi, pathlib, sys, argparse, ssl, os, builtins
-import tempfile, base64, binascii, functools, contextlib
+import http.server, http, pathlib, sys, argparse, ssl, os, builtins, tempfile
+import base64, binascii, functools, contextlib
 
 # Does not seem to do be used, but leaving this import out causes uploadserver to not receive IPv4 requests when
 # started with default options under Windows
 import socket
+
+# The cgi module was deprecated in Python 3.13, so I saved a copy in this
+# project
+if sys.version_info.major == 3 and sys.version_info.minor < 13:
+    import cgi
+else:
+    import uploadserver.cgi
 
 COLOR_SCHEME = {
     'light': 'light',
