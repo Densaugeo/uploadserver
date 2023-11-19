@@ -74,6 +74,19 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
 </script>
 </html>''', 'utf-8')
 
+def get_directory_head_injection(theme):
+    return bytes('''<!-- Injected by uploadserver -->
+<meta name="viewport" content="width=device-width" />
+<meta name="color-scheme" content="''' + COLOR_SCHEME.get(theme) + '''">
+<!-- End injection by uploadserver -->
+''', 'utf-8')
+
+DIRECTORY_BODY_INJECTION = b'''<!-- Injected by uploadserver -->
+<a href="upload">File upload</a> (provided by uploadserver)
+<hr>
+<!-- End injection by uploadserver -->
+'''
+
 def send_upload_page(handler):
     handler.send_response(http.HTTPStatus.OK)
     handler.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -196,7 +209,40 @@ def check_http_authentication(handler):
     
     return valid
 
-class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+# Let's not inherit http.server.SimpleHTTPRequestHandler - that would cause
+# diamond-pattern inheritance
+class ListDirectoryInterception:
+    # Only runs when serving directory listings
+    def flush_headers_interceptor(self):
+        for i, header in enumerate(self._headers_buffer):
+            if header[:15] == b'Content-Length:':
+                length = int(header[15:]) + len(DIRECTORY_BODY_INJECTION) + \
+                    len(get_directory_head_injection(args.theme))
+                
+                # Use same encoding that self.send_header() uses
+                self._headers_buffer[i] = f'Content-Length: {length}\r\n' \
+                    .encode('latin-1', 'strict')
+        
+        # Can't use super() - avoiding diamond-pattern inheritance'
+        http.server.SimpleHTTPRequestHandler.flush_headers(self)
+    
+    # Only runs when serving directory listings
+    def copyfile_interceptor(self, source, outputfile):
+        content = source.read()
+        content = content.replace(b'</head>',
+            get_directory_head_injection(args.theme) + b'</head>')
+        content = content.replace(b'<ul>', DIRECTORY_BODY_INJECTION + b'<ul>')
+        outputfile.write(content)
+    
+    def list_directory(self, path):
+        setattr(self, 'flush_headers', self.flush_headers_interceptor)
+        setattr(self, 'copyfile', self.copyfile_interceptor)
+        
+        # Can't use super() - avoiding diamond-pattern inheritance'
+        return http.server.SimpleHTTPRequestHandler.list_directory(self, path)
+
+class SimpleHTTPRequestHandler(ListDirectoryInterception,
+    http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if not check_http_authentication(self): return
         
@@ -223,7 +269,8 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_PUT(self):
         self.do_POST()
 
-class CGIHTTPRequestHandler(http.server.CGIHTTPRequestHandler):
+class CGIHTTPRequestHandler(ListDirectoryInterception,
+    http.server.CGIHTTPRequestHandler):
     def do_GET(self):
         if not check_http_authentication(self): return
         

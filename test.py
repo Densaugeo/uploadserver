@@ -312,6 +312,25 @@ def test_with_theme_light():
     
     with open('theme-light-file') as f: assert f.read() == 'content-for-light'
 
+def test_directory_listing_injections():
+    spawn_server()
+    
+    res = get('/')
+    assert res.status_code == 200
+    assert int(res.headers['Content-Length']) == len(res.text)
+    assert '<!-- Injected by uploadserver -->' in res.text
+    assert '<a href="upload">File upload</a>' in res.text
+
+# Test this on the CGI variant too, to validate the funny inheritance pattern
+def test_directory_listing_injections_cgi():
+    spawn_server(cgi=True)
+    
+    res = get('/')
+    assert res.status_code == 200
+    assert int(res.headers['Content-Length']) == len(res.text)
+    assert '<!-- Injected by uploadserver -->' in res.text
+    assert '<a href="upload">File upload</a>' in res.text
+
 if PROTOCOL == 'HTTPS':
     def test_client_cert_valid():
         spawn_server(client_certificate=('../client.pem', '../client.crt'))
@@ -446,12 +465,14 @@ def test_http_basic_auth_example():
 
 # Cannot be made into a fixture because fixture do not allow passing arguments
 # in Python 3.6
-def spawn_server(port=None, allow_replace=False, directory=None, theme=None,
+def spawn_server(port=None, cgi=False, allow_replace=False, directory=None,
+    theme=None,
     server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None),
     client_certificate=None, basic_auth=None, basic_auth_upload=None,
 ):
     args = ['python3', '-u', '-m', 'uploadserver']
     if port: args += [str(port)]
+    if cgi: args += ['--cgi']
     if allow_replace: args += ['--allow-replace']
     if directory: args += ['-d', directory]
     if theme: args += ['--theme', theme]
