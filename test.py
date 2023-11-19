@@ -39,7 +39,8 @@ def teardown_function():
 # Tests #
 #########
 
-# Verify a basic test can run. Most importantly, verify the sleep is long enough for the sever to start
+# Verify a basic test can run. Most importantly, verify the sleep is long enough
+# for the sever to start
 def test_basic():
     spawn_server()
     
@@ -158,8 +159,8 @@ def test_basic_auth_no_remnants():
     
     assert not Path('token-remnant-bug.txt').exists()
     
-    # Check for bug #29, in which a blocked upload left behind tmp files. Resolved by adding
-    # HTTP basic auth, which is not susceptible to this
+    # Check for bug #29, in which a blocked upload left behind tmp files.
+    # Resolved by adding HTTP basic auth, which is not susceptible to this
     assert next(Path('.').glob('tmp*'), None) is None
 
 def test_cannot_enable_both_basic_auths():
@@ -251,7 +252,8 @@ def test_multiple_upload():
     with open('file-1') as f: assert f.read() == 'file-content-1'
     with open('file-2') as f: assert f.read() == 'file-content-2'
 
-# Uploads large enough to need a temp file have slightly different handling that needs to be tested
+# Uploads large enough to need a temp file have slightly different handling that
+# needs to be tested
 def test_large_upload():
     spawn_server()
     
@@ -283,10 +285,11 @@ def test_upload_respects_directory():
     })
     assert res.status_code == 204
     
-    with open('directory-option-test/directory-file') as f: assert f.read() == 'file-content'
+    with open('directory-option-test/directory-file') as f:
+        assert f.read() == 'file-content'
 
-# There's no client-side testing to verify the theme or UI, but I can at least make sure the server runs
-# when a theme is used
+# There's no client-side testing to verify the theme or UI, but I can at least
+# make sure the server runs when a theme is used
 def test_with_theme_dark():
     spawn_server(theme='dark')
     
@@ -297,8 +300,8 @@ def test_with_theme_dark():
     
     with open('theme-dark-file') as f: assert f.read() == 'content-for-dark'
 
-# There's no client-side testing to verify the theme or UI, but I can at least make sure the server runs
-# when a theme is used
+# There's no client-side testing to verify the theme or UI, but I can at least
+# make sure the server runs when a theme is used
 def test_with_theme_light():
     spawn_server(theme='light')
     
@@ -318,15 +321,18 @@ if PROTOCOL == 'HTTPS':
         })
         assert res.status_code == 204
         
-        with open('valid-client-cert-upload') as f: assert f.read() == 'client-cert-upload-content'
+        with open('valid-client-cert-upload') as f:
+            assert f.read() == 'client-cert-upload-content'
 
 if PROTOCOL == 'HTTPS':
     def test_client_cert_invalid():
         spawn_server(client_certificate=('../client.pem', '../client.crt'))
         
-        with pytest.raises(requests.ConnectionError): post('/upload', cert='../server.pem', files={
-            'files': ('invalid-client-cert-upload', 'client-cert-upload-content')
-        })
+        with pytest.raises(requests.ConnectionError):
+            post('/upload', cert='../server.pem', files={
+                'files': ('invalid-client-cert-upload',
+                    'client-cert-upload-content')
+            })
         
         assert not Path('invalid-client-cert-upload').exists()
 
@@ -334,14 +340,17 @@ if PROTOCOL == 'HTTPS':
     def test_client_cert_missing():
         spawn_server(client_certificate=('../client.pem', '../client.crt'))
         
-        with pytest.raises(requests.ConnectionError): post('/upload', files={
-            'files': ('missing-client-cert-upload', 'client-cert-upload-content'),
-        })
+        with pytest.raises(requests.ConnectionError):
+            post('/upload', files={
+                'files': ('missing-client-cert-upload',
+                    'client-cert-upload-content'),
+            })
         
         assert not Path('missing-client-cert-upload').exists()
 
 if PROTOCOL == 'HTTPS':
-    # Verify that uploadserver will refuse to start if given a certificate inside its server root
+    # Verify that uploadserver will refuse to start if given a certificate
+    # inside its server root
     def test_certificate_not_allowed_in_root():
         shutil.copyfile('../server.pem', 'server.pem')
         
@@ -358,7 +367,7 @@ def test_curl_example():
     spawn_server()
     
     result = subprocess.run([
-            'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
+            'curl', '-X', 'POST', f'{PROTOCOL.lower()}://localhost:8000/upload',
             '--insecure', '-F', 'files=@../test-files/simple-example.txt',
         ],
         stdout=None if VERBOSE else subprocess.DEVNULL,
@@ -367,15 +376,16 @@ def test_curl_example():
     
     assert result.returncode == 0
     
-    with open('simple-example.txt') as f_actual, open('../test-files/simple-example.txt') as f_expected:
-        assert f_actual.read() == f_expected.read()
+    with open('simple-example.txt') as f_actual:
+        with open('../test-files/simple-example.txt') as f_expected:
+            assert f_actual.read() == f_expected.read()
 
 # Verify example curl command with multiple files works
 def test_curl_multiple_example():
     spawn_server()
     
     result = subprocess.run([
-            'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
+            'curl', '-X', 'POST', f'{PROTOCOL.lower()}://localhost:8000/upload',
             '--insecure', '-F', 'files=@../test-files/multiple-example-1.txt',
             '-F', 'files=@../test-files/multiple-example-2.txt',
         ],
@@ -385,10 +395,12 @@ def test_curl_multiple_example():
     
     assert result.returncode == 0
     
-    with open('multiple-example-1.txt') as f_actual, open('../test-files/multiple-example-1.txt') as f_expected:
-        assert f_actual.read() == f_expected.read()
-    with open('multiple-example-2.txt') as f_actual, open('../test-files/multiple-example-2.txt') as f_expected:
-        assert f_actual.read() == f_expected.read()
+    with open('multiple-example-1.txt') as f_actual:
+        with open('../test-files/multiple-example-1.txt') as f_expected:
+            assert f_actual.read() == f_expected.read()
+    with open('multiple-example-2.txt') as f_actual:
+        with open('../test-files/multiple-example-2.txt') as f_expected:
+            assert f_actual.read() == f_expected.read()
 
 if PROTOCOL == 'HTTPS':
     # Verify example curl command with mTLS works
@@ -396,23 +408,26 @@ if PROTOCOL == 'HTTPS':
         spawn_server(client_certificate=('../client.pem', '../client.crt'))
         
         result = subprocess.run([
-                'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
-                '--insecure', '--cert', '../client.pem', '-F', 'files=@../test-files/mtls-example.txt',
+                'curl', '-X', 'POST',
+                f'{PROTOCOL.lower()}://localhost:8000/upload',
+                '--insecure', '--cert', '../client.pem', '-F',
+                'files=@../test-files/mtls-example.txt',
             ],
             stdout=None if VERBOSE else subprocess.DEVNULL,
             stderr=None if VERBOSE else subprocess.DEVNULL,
         )
         assert result.returncode == 0
         
-        with open('mtls-example.txt') as f_actual, open('../test-files/mtls-example.txt') as f_expected:
-            assert f_actual.read() == f_expected.read()
+        with open('mtls-example.txt') as f_actual:
+            with open('../test-files/mtls-example.txt') as f_expected:
+                assert f_actual.read() == f_expected.read()
 
 # Verify example curl command with HTTP basic auth works
 def test_http_basic_auth_example():
     spawn_server(basic_auth=requests.auth.HTTPBasicAuth('hello', 'world'))
     
     result = subprocess.run([
-            'curl', '-X', 'POST', '{}://localhost:8000/upload'.format(PROTOCOL.lower()),
+            'curl', '-X', 'POST', f'{PROTOCOL.lower()}://localhost:8000/upload',
             '--insecure', '-F', 'files=@../test-files/basic-auth-example.txt',
             '-u', 'hello:world',
         ],
@@ -421,16 +436,19 @@ def test_http_basic_auth_example():
     )
     assert result.returncode == 0
     
-    with open('basic-auth-example.txt') as f_actual, open('../test-files/basic-auth-example.txt') as f_expected:
-        assert f_actual.read() == f_expected.read()
+    with open('basic-auth-example.txt') as f_actual:
+        with open('../test-files/basic-auth-example.txt') as f_expected:
+            assert f_actual.read() == f_expected.read()
 
 ###########
 # Helpers #
 ###########
 
-# Cannot be made into a fixture because fixture do not allow passing arguments in Python 3.6
+# Cannot be made into a fixture because fixture do not allow passing arguments
+# in Python 3.6
 def spawn_server(port=None, allow_replace=False, directory=None, theme=None,
-    server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None), client_certificate=None, basic_auth=None, basic_auth_upload=None,
+    server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None),
+    client_certificate=None, basic_auth=None, basic_auth_upload=None,
 ):
     args = ['python3', '-u', '-m', 'uploadserver']
     if port: args += [str(port)]
@@ -438,11 +456,13 @@ def spawn_server(port=None, allow_replace=False, directory=None, theme=None,
     if directory: args += ['-d', directory]
     if theme: args += ['--theme', theme]
     if server_certificate: args += ['-c', server_certificate]
-    if client_certificate: args += ['--client-certificate', client_certificate[1]]
+    if client_certificate: args += ['--client-certificate',
+        client_certificate[1]]
     if basic_auth:
         args += ['--basic-auth', f'{basic_auth.username}:{basic_auth.password}']
     if basic_auth_upload:
-        args += ['--basic-auth-upload', f'{basic_auth_upload.username}:{basic_auth_upload.password}']
+        args += ['--basic-auth-upload',
+            f'{basic_auth_upload.username}:{basic_auth_upload.password}']
     
     server_holder[0] = subprocess.Popen(args)
     
@@ -456,16 +476,17 @@ def spawn_server(port=None, allow_replace=False, directory=None, theme=None,
         except requests.exceptions.ConnectionError:
             time.sleep(0.01)
     else:
-        raise Exception('Port {} not responding. Did the server fail to start?'.format(port or 8000))
+        raise Exception(f'Port {port or 8000} not responding. Did the server '
+            'fail to start?')
 
 def get(path, port=8000, *args, **kwargs):
-    return requests.get('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), 
+    return requests.get(f'{PROTOCOL.lower()}://127.0.0.1:{port}{path}',
         verify=False, *args, **kwargs)
 
 def post(path, port=8000, *args, **kwargs):
-    return requests.post('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), 
+    return requests.post(f'{PROTOCOL.lower()}://127.0.0.1:{port}{path}',
         verify=False, *args, **kwargs)
 
 def put(path, port=8000, *args, **kwargs):
-    return requests.put('{}://127.0.0.1:{}{}'.format(PROTOCOL.lower(), port, path), 
+    return requests.put(f'{PROTOCOL.lower()}://127.0.0.1:{port}{path}',
         verify=False, *args, **kwargs)

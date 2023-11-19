@@ -1,8 +1,8 @@
 import http.server, http, pathlib, sys, argparse, ssl, os, builtins, tempfile
 import base64, binascii, functools, contextlib
 
-# Does not seem to do be used, but leaving this import out causes uploadserver to not receive IPv4 requests when
-# started with default options under Windows
+# Does not seem to do be used, but leaving this import out causes uploadserver
+# to not receive IPv4 requests when started with default options under Windows
 import socket
 
 # The cgi module was deprecated in Python 3.13, so I saved a copy in this
@@ -50,15 +50,20 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
   uploadRequest.onreadystatechange = () => {
     if (uploadRequest.readyState === XMLHttpRequest.DONE) {
       let message = `${uploadRequest.status}: ${uploadRequest.statusText}`
-      if (uploadRequest.status === 204) message = `Success: ${uploadRequest.statusText}`
       if (uploadRequest.status === 0) message = 'Connection failed'
+      if (uploadRequest.status === 204) {
+        message = `Success: ${uploadRequest.statusText}`
+      }
       document.getElementById('status').textContent = message
     }
   }
   
   uploadRequest.upload.onprogress = e => {
-    let message = e.loaded === e.total ? 'Saving…' : `${Math.floor(100*e.loaded/e.total)}% [${e.loaded >> 10} / ${e.total >> 10}KiB]`
-    document.getElementById("status").textContent = message
+    document.getElementById('status').textContent = (e.loaded === e.total ?
+      'Saving…' :
+      `${Math.floor(100*e.loaded/e.total)}% ` +
+      `[${e.loaded >> 10} / ${e.total >> 10}KiB]`
+    )
   }
   
   uploadRequest.send(uploadFormData)
@@ -77,14 +82,16 @@ def send_upload_page(handler):
     handler.wfile.write(get_upload_page(args.theme))
 
 class PersistentFieldStorage(cgi.FieldStorage):
-    # Override cgi.FieldStorage.make_file() method. Valid for Python 3.1 ~ 3.10. Modified version of the original
-    # .make_file() method (base copied from Python 3.10)
+    # Override cgi.FieldStorage.make_file() method. Valid for Python 3.1 ~ 3.10.
+    # Modified version of the original .make_file() method (base copied from
+    # Python 3.10)
     def make_file(self):
         if self._binary_file:
-            return tempfile.NamedTemporaryFile(mode = 'wb+', dir = args.directory, delete = False)
+            return tempfile.NamedTemporaryFile(mode = 'wb+',
+                dir = args.directory, delete = False)
         else:
-            return tempfile.NamedTemporaryFile("w+", dir = args.directory, delete = False,
-                encoding = self.encoding, newline = '\n')
+            return tempfile.NamedTemporaryFile("w+", dir = args.directory,
+                delete = False, encoding = self.encoding, newline = '\n')
 
 def auto_rename(path):
     if not os.path.exists(path):
@@ -100,7 +107,8 @@ def receive_upload(handler):
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
     name_conflict = False
     
-    form = PersistentFieldStorage(fp=handler.rfile, headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
+    form = PersistentFieldStorage(fp=handler.rfile, headers=handler.headers,
+        environ={'REQUEST_METHOD': 'POST'})
     if 'files' not in form:
         return (http.HTTPStatus.BAD_REQUEST, 'Field "files" not found')
     
@@ -129,11 +137,14 @@ def receive_upload(handler):
                 source = field.file.name
                 field.file.close()
                 os.rename(source, destination)
-            else:  # class '_io.BytesIO', small file (< 1000B, in cgi.py), in-memory buffer.
+            # class '_io.BytesIO', small file (< 1000B, in cgi.py), in-memory
+            # buffer
+            else: 
                 with open(destination, 'wb') as f:
                     f.write(field.file.read())
             handler.log_message(f'[Uploaded] "{filename}" --> {destination}')
-            result = (http.HTTPStatus.NO_CONTENT, 'Some filename(s) changed due to name conflict' if name_conflict else 'Files accepted')
+            result = (http.HTTPStatus.NO_CONTENT, 'Some filename(s) changed '
+                'due to name conflict' if name_conflict else 'Files accepted')
     
     return result
 
@@ -163,9 +174,9 @@ def check_http_authentication_header(handler, auth):
 
 def check_http_authentication(handler):
     """
-        This function should be called in at the beginning of HTTP method handler.
-        It validates Authorization header and sends back 401 response on failure.
-        It returns False if this happens.
+    This function should be called in at the beginning of HTTP method handler.
+    It validates Authorization header and sends back 401 response on failure.
+    It returns False if this happens.
     """
     if handler.path == '/upload':
         auth = args.basic_auth or args.basic_auth_upload
@@ -206,7 +217,8 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 self.send_error(result[0], result[1])
         else:
-            self.send_error(http.HTTPStatus.NOT_FOUND, 'Can only POST/PUT to /upload')
+            self.send_error(http.HTTPStatus.NOT_FOUND,
+                'Can only POST/PUT to /upload')
     
     def do_PUT(self):
         self.do_POST()
@@ -242,7 +254,8 @@ def intercept_first_print():
         # Use the right protocol in the first print call in case of HTTPS
         old_print = builtins.print
         def new_print(*args, **kwargs):
-            old_print(args[0].replace('HTTP', 'HTTPS').replace('http', 'https'), **kwargs)
+            old_print(args[0].replace('HTTP', 'HTTPS').replace('http', 'https'),
+                **kwargs)
             builtins.print = old_print
         builtins.print = new_print
 
@@ -254,11 +267,12 @@ def ssl_wrap(socket):
     server_certificate = pathlib.Path(args.server_certificate).resolve()
     
     if not server_certificate.is_file():
-        print('Server certificate "{}" not found, exiting'.format(server_certificate))
+        print(f'Server certificate "{server_certificate}" not found, exiting')
         sys.exit(4)
     
     if server_root in server_certificate.parents:
-        print('Server certificate "{}" is inside web server root "{}", exiting'.format(server_certificate, server_root))
+        print(f'Server certificate "{server_certificate}" is inside web server '
+            f'root "{server_root}", exiting')
         sys.exit(3)
     
     context.load_cert_chain(certfile=server_certificate)
@@ -268,11 +282,13 @@ def ssl_wrap(socket):
         client_certificate = pathlib.Path(args.client_certificate).resolve()
         
         if not client_certificate.is_file():
-            print('Client certificate "{}" not found, exiting'.format(client_certificate))
+            print(f'Client certificate "{client_certificate}" not found, '
+                'exiting')
             sys.exit(4)
         
         if server_root in client_certificate.parents:
-            print('Client certificate "{}" is inside web server root "{}", exiting'.format(client_certificate, server_root))
+            print(f'Client certificate "{client_certificate}" is inside web '
+                f'server root "{server_root}", exiting')
             sys.exit(3)
     
         context.load_verify_locations(cafile=client_certificate)
@@ -300,7 +316,8 @@ def serve_forever():
     if args.cgi:
         handler_class = CGIHTTPRequestHandler
     else:
-        handler_class = functools.partial(SimpleHTTPRequestHandler, directory=args.directory)
+        handler_class = functools.partial(SimpleHTTPRequestHandler,
+            directory=args.directory)
     
     print('File upload available at /upload')
     
@@ -333,19 +350,24 @@ def main():
     parser.add_argument('--cgi', action='store_true',
         help='Run as CGI Server')
     parser.add_argument('--allow-replace', action='store_true', default=False,
-        help='Replace existing file if uploaded file has the same name. Auto rename by default.')
+        help='Replace existing file if uploaded file has the same name. Auto '
+        'rename by default.')
     parser.add_argument('--bind', '-b', metavar='ADDRESS',
         help='Specify alternate bind address [default: all interfaces]')
     parser.add_argument('--directory', '-d', default=os.getcwd(),
         help='Specify alternative directory [default:current directory]')
     parser.add_argument('--theme', type=str, default='auto',
-        choices=['light', 'auto', 'dark'], help='Specify a light or dark theme for the upload page [default: auto]')
+        choices=['light', 'auto', 'dark'],
+        help='Specify a light or dark theme for the upload page '
+        '[default: auto]')
     parser.add_argument('--server-certificate', '--certificate', '-c',
         help='Specify HTTPS server certificate to use [default: none]')
     parser.add_argument('--client-certificate',
-        help='Specify HTTPS client certificate to accept for mutual TLS [default: none]')
+        help='Specify HTTPS client certificate to accept for mutual TLS '
+        '[default: none]')
     parser.add_argument('--basic-auth',
-        help='Specify user:pass for basic authentication (downloads and uploads)')
+        help='Specify user:pass for basic authentication (downloads and '
+        'uploads)')
     parser.add_argument('--basic-auth-upload',
         help='Specify user:pass for basic authentication (uploads only)')
     
