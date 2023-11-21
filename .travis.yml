@@ -7,6 +7,6 @@ python:
   - "3.11"
   - "3.12-dev"
 install:
-  - python -m pip install pytest requests
+  - python -m pip install pytest requests multipart
 script:
   - make test-travis
