@@ -1,5 +1,6 @@
 import http.server, http, pathlib, sys, argparse, ssl, os, builtins, tempfile
 import base64, binascii, functools, contextlib
+import multipart
 
 # Does not seem to do be used, but leaving this import out causes uploadserver
 # to not receive IPv4 requests when started with default options under Windows
@@ -120,14 +121,18 @@ def receive_upload(handler):
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
     name_conflict = False
     
-    form = PersistentFieldStorage(fp=handler.rfile, headers=handler.headers,
-        environ={'REQUEST_METHOD': 'POST'})
-    if 'files' not in form:
-        return (http.HTTPStatus.BAD_REQUEST, 'Field "files" not found')
+    # Read boundary and length
+    boundary = None
+    (content_type, content_type_options) = multipart.parse_options_header(handler.headers['Content-Type'])
+    if content_type_options and 'boundary' in content_type_options:
+        boundary = content_type_options['boundary']
+    content_length = int(handler.headers['Content-Length'])
     
-    fields = form['files']
-    if not isinstance(fields, list):
-        fields = [fields]
+    # Parse request
+    multipart_parser = multipart.MultipartParser(handler.rfile, boundary, content_length=content_length, disk_limit=2 ** 40)
+    fields = multipart_parser.get_all('files')
+    if not fields:
+        return (http.HTTPStatus.BAD_REQUEST, 'Field "files" not found')
     
     if not all(field.file and field.filename for field in fields):
         return (http.HTTPStatus.BAD_REQUEST, 'No files selected')
