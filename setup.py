@@ -21,5 +21,8 @@ setuptools.setup(
     python_requires='>=3.8',
     entry_points = {
         'console_scripts': ['uploadserver=uploadserver:main'],
-    }
+    },
+    install_requires=[
+        "multipart>=0.2,<0.3"
+    ]
 )
