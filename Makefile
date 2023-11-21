@@ -24,7 +24,7 @@ test-travis: server.pem client.pem client.crt
 install-dev:
 	chmod 775 test-all.sh
 	$(PY) -m venv venv-$(PY)
-	. venv-$(PY)/bin/activate; $(PY) -m pip install pytest requests
+	. venv-$(PY)/bin/activate; $(PY) -m pip install pytest requests multipart
 
 server.pem:
 	openssl req -x509 -out server.pem -keyout server.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=server'
