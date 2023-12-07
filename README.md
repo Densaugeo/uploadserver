@@ -118,7 +118,7 @@ Note: This uses a self-signed server certificate which clients such as web brows
 
 ## Breaking Changes in 4.0.0
 
-- By default, uploaded files which have the same name as an existing file are renamed. To restore the previous behavior of overwriting them, pass `--allowreplace`.
+- By default, uploaded files which have the same name as an existing file are renamed. To restore the previous behavior of overwriting them, pass `--allow-replace`.
 - File uploads with no files in them are rejected with 400 Bad Request instead of 500 Internal Server Error, with a more informative error message.
 - Handling of large uploads has been improved. Theoretically this should not cause any breaking changes, but filesystems are black magic and should be viewed with suspicion.
 
