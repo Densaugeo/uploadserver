@@ -62,7 +62,7 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
     document.getElementById('status').textContent = (e.loaded === e.total ?
       'Saving…' :
       `${Math.floor(100*e.loaded/e.total)}% ` +
-      `[${e.loaded >> 10} / ${e.total >> 10}KiB]`
+      `[${Math.floor(e.loaded / Math.pow(2, 10))} / ${Math.floor(e.total / Math.pow(2, 10))}KiB]`
     )
   }
   
