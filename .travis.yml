@@ -6,6 +6,7 @@ python:
   - "3.10"
   - "3.11"
   - "3.12-dev"
+# Travis CI doesn't support 3.13 yet
 install:
   - python -m pip install pytest requests
 script:
