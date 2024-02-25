@@ -191,15 +191,31 @@ def check_http_authentication(handler):
     It validates Authorization header and sends back 401 response on failure.
     It returns False if this happens.
     """
-    if handler.path == '/upload':
-        auth = args.basic_auth or args.basic_auth_upload
+    if not args.basic_auth_upload:
+        # If no auth settings apply, check always passes
+        if not args.basic_auth:
+            return True
+        
+        # If only --basic-auth is supplied, it's used for all requests
+        valid, message = check_http_authentication_header(handler, args.basic_auth)
     else:
-        auth = args.basic_auth
-    
-    # If no auth settings apply, check always passes
-    if not auth: return True
-    
-    valid, message = check_http_authentication_header(handler, auth)
+        # If --basic-auth-upload is supplied, it's always required for /upload
+        if handler.path == '/upload':
+            valid, message = check_http_authentication_header(handler,
+                args.basic_auth_upload)
+        else:
+            # For paths outside /upload, no auth is required when --basic-auth
+            # is not supplied
+            if not args.basic_auth:
+                return True
+            
+            # For paths outise /upload, if both auths are supplied both are
+            # accepted
+            else:
+                valid, message = check_http_authentication_header(handler, args.basic_auth)
+                
+                if not valid:
+                    valid, message = check_http_authentication_header(handler, args.basic_auth_upload)
     
     if not valid:
         handler.log_message(f'Request rejected ({message})')
@@ -420,9 +436,5 @@ def main():
     
     args = parser.parse_args()
     if not hasattr(args, 'directory'): args.directory = os.getcwd()
-    
-    if args.basic_auth and args.basic_auth_upload:
-        print('Cannot set both --basic--auth and --basic-auth-upload')
-        sys.exit(6)
     
     serve_forever()

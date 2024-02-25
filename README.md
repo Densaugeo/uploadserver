@@ -50,9 +50,7 @@ Now you can upload with basic authentication. For example:
 curl -X POST http://127.0.0.1:8000/upload -F 'files=@basicauth-example.txt' -u hello:world
 ~~~
 
-Uploads without authentication will be rejected. Note that basic authentication credentials can be stolen if sent over plain HTTP, so this option is best used with HTTPS.
-
-The server checks credentials before it handles the body of the request, so this mode of operation is not susceptible to DoS attack mentioned in the previous section.
+All requests without authentication will be rejected. Note that basic authentication credentials can be stolen if sent over plain HTTP, so this option is best used with HTTPS.
 
 ## Basic Authentication (uploads only)
 
@@ -62,7 +60,7 @@ python3 -m uploadserver --basic-auth-upload hello:world
 
 The same as above, but authentication is only required for upload operations.
 
-If both --basic-auth and --basic-auth-upload are specified, first one will be used for downloads and the second one for uploads.
+If both `--basic-auth` and `--basic-auth-upload` are specified, all requests will require one of the two credentials, but only the `--basic-auth-upload` credentials will be able to upload files.
 
 ## Theme Option
 

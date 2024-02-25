@@ -15,6 +15,7 @@ assert PROTOCOL in ['HTTP', 'HTTPS'], 'Unknown $PROTOCOL: {}'.format(PROTOCOL)
 TEST_BASIC_AUTH = requests.auth.HTTPBasicAuth('foo', 'bar')
 TEST_BASIC_AUTH_BAD_USER = requests.auth.HTTPBasicAuth('foo2', 'bar')
 TEST_BASIC_AUTH_BAD_PASS = requests.auth.HTTPBasicAuth('foo', 'bar2')
+TEST_BASIC_AUTH_2 = requests.auth.HTTPBasicAuth('another user', 'pass')
 
 server_holder = [None]
 
@@ -163,18 +164,33 @@ def test_basic_auth_no_remnants():
     # Resolved by adding HTTP basic auth, which is not susceptible to this
     assert next(Path('.').glob('tmp*'), None) is None
 
-def test_cannot_enable_both_basic_auths():
-    certificate_arg = ['-c', '../server.pem'] if PROTOCOL == 'HTTPS' else None
+@pytest.mark.parametrize('auth', [TEST_BASIC_AUTH, TEST_BASIC_AUTH_2])
+def test_dual_basic_auth(auth):
+    spawn_server(basic_auth=TEST_BASIC_AUTH,
+        basic_auth_upload=TEST_BASIC_AUTH_2)
     
-    result = subprocess.run([
-            'python', '-m', 'uploadserver', '--basic-auth', 'user1:pass1',
-            '--basic-auth-upload', 'user2:pass2',
-        ],
-        stdout=None if VERBOSE else subprocess.DEVNULL,
-        stderr=None if VERBOSE else subprocess.DEVNULL,
-    )
+    res = get('/', auth=auth)
+    assert res.status_code == 200
+
+def test_dual_basic_auth_upload():
+    spawn_server(basic_auth=TEST_BASIC_AUTH,
+        basic_auth_upload=TEST_BASIC_AUTH_2)
     
-    assert result.returncode == 6
+    assert post('/upload', auth=TEST_BASIC_AUTH_2, files={
+        'files': ('dual-auth', 'dual-auth-content'),
+    }).status_code == 204
+    
+    with open('dual-auth') as f: assert f.read() == 'dual-auth-content'
+
+def test_dual_basic_auth_upload_wrong_login():
+    spawn_server(basic_auth=TEST_BASIC_AUTH,
+        basic_auth_upload=TEST_BASIC_AUTH_2)
+    
+    assert post('/upload', auth=TEST_BASIC_AUTH, files={
+        'files': ('unauth-file', 'file-content'),
+    }).status_code == 401
+    
+    assert not Path('unauth-file').exists()
 
 # Verify uploaded file is renamed if there is a collision
 def test_upload_same_name_default():
