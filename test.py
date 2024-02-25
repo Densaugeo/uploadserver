@@ -113,17 +113,17 @@ def test_basic_auth_post(condition):
     spawn_server(**{ condition: TEST_BASIC_AUTH })
     
     assert post('/upload', auth=TEST_BASIC_AUTH, files={
-        'files': ('auth-file', 'file-content'),
+        'files': (condition, 'file-content'),
     }).status_code == 204
     
-    with open('a-file') as f: assert f.read() == 'file-content'
+    with open(condition) as f: assert f.read() == 'file-content'
 
 @pytest.mark.parametrize('condition', ['basic_auth', 'basic_auth_upload'])
 def test_basic_auth_post_no_credentials(condition):
     spawn_server(**{ condition: TEST_BASIC_AUTH })
     
     assert post('/upload', files={
-        'files': ('unath-file', 'file-content'),
+        'files': ('unauth-file', 'file-content'),
     }).status_code == 401
     
     assert not Path('unauth-file').exists()
@@ -133,17 +133,17 @@ def test_basic_auth_post_bad_user(condition):
     spawn_server(**{ condition: TEST_BASIC_AUTH })
     
     assert post('/upload', auth=TEST_BASIC_AUTH_BAD_USER, files={
-        'files': ('a-file', 'file-content'),
+        'files': ('unauth-file', 'file-content'),
     }).status_code == 401
     
     assert not Path('unauth-file').exists()
     
 @pytest.mark.parametrize('condition', ['basic_auth', 'basic_auth_upload'])
-def test_basic_auth_post_bas_pass(condition):
+def test_basic_auth_post_bad_pass(condition):
     spawn_server(**{ condition: TEST_BASIC_AUTH })
     
     assert post('/upload', auth=TEST_BASIC_AUTH_BAD_PASS, files={
-        'files': ('a-file', 'file-content'),
+        'files': ('unauth-file', 'file-content'),
     }).status_code == 401
     
     assert not Path('unauth-file').exists()
@@ -178,7 +178,7 @@ def test_cannot_enable_both_basic_auths():
 
 # Verify uploaded file is renamed if there is a collision
 def test_upload_same_name_default():
-    file_name = 'b-file'
+    file_name = 'autorename'
     file_renamed = f'{file_name} (1)'  # this is the auto-renaming pattern
     
     spawn_server()
