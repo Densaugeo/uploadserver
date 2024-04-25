@@ -1,5 +1,6 @@
 import http.server, http, pathlib, sys, argparse, ssl, os, builtins, tempfile
 import base64, binascii, functools, contextlib
+from datetime import datetime
 
 # Does not seem to do be used, but leaving this import out causes uploadserver
 # to not receive IPv4 requests when started with default options under Windows
@@ -30,6 +31,14 @@ def get_upload_page(theme):
 <h1>File Upload</h1>
 <form action="upload" method="POST" enctype="multipart/form-data">
 <input name="files" type="file" multiple />
+<br />
+<br />
+<label for="message">Optional free text:</label>
+<br />
+<textarea id="message" name="message" style="width:100%" rows="5"></textarea>
+<br />
+<label for="auto_clear">Clear free text after submission</label>
+<input type="checkbox" id="auto_clear" name="auto_clear" >
 <br />
 <br />
 <input type="submit" />
@@ -67,7 +76,11 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
   }
   
   uploadRequest.send(uploadFormData)
-  
+
+  if (document.getElementById('auto_clear').checked) {
+    document.getElementById('message').value='';
+  }
+
   document.getElementById('task').textContent = `Uploading ${filenames}:`
   document.getElementById('status').textContent = '0%'
 })
@@ -94,6 +107,10 @@ def send_upload_page(handler):
     handler.end_headers()
     handler.wfile.write(get_upload_page(args.theme))
 
+def log_event(source, event):
+    timestamp = datetime.now().strftime("%c")
+    print(f'{timestamp}, {source}, {event}', file=args.log_file)
+
 class PersistentFieldStorage(cgi.FieldStorage):
     # Override cgi.FieldStorage.make_file() method. Valid for Python 3.1 ~ 3.10.
     # Modified version of the original .make_file() method (base copied from
@@ -117,20 +134,28 @@ def auto_rename(path):
     raise FileExistsError(f'File {path} already exists.')
 
 def receive_upload(handler):
-    result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
+    result = (http.HTTPStatus.NO_CONTENT, 'Empty request')
     name_conflict = False
+    client = handler.client_address[0]
     
     form = PersistentFieldStorage(fp=handler.rfile, headers=handler.headers,
         environ={'REQUEST_METHOD': 'POST'})
+
+    if "message" in form:
+        message = form["message"].value.strip()
+        if len(message) > 0:
+            log_event(client, message)
+            result = (http.HTTPStatus.NO_CONTENT, 'Free text received')
+
     if 'files' not in form:
-        return (http.HTTPStatus.BAD_REQUEST, 'Field "files" not found')
+        return result
     
     fields = form['files']
     if not isinstance(fields, list):
         fields = [fields]
     
     if not all(field.file and field.filename for field in fields):
-        return (http.HTTPStatus.BAD_REQUEST, 'No files selected')
+        return result
     
     for field in fields:
         if field.file and field.filename:
@@ -155,7 +180,7 @@ def receive_upload(handler):
             else: 
                 with open(destination, 'wb') as f:
                     f.write(field.file.read())
-            handler.log_message(f'[Uploaded] "{filename}" --> {destination}')
+            log_event(client, f'[Uploaded] "{filename}" --> {destination}')
             result = (http.HTTPStatus.NO_CONTENT, 'Some filename(s) changed '
                 'due to name conflict' if name_conflict else 'Files accepted')
     
@@ -191,6 +216,8 @@ def check_http_authentication(handler):
     It validates Authorization header and sends back 401 response on failure.
     It returns False if this happens.
     """
+    client = handler.client_address[0]
+
     if not args.basic_auth_upload:
         # If no auth settings apply, check always passes
         if not args.basic_auth:
@@ -218,7 +245,7 @@ def check_http_authentication(handler):
                     valid, message = check_http_authentication_header(handler, args.basic_auth_upload)
     
     if not valid:
-        handler.log_message(f'Request rejected ({message})')
+        log_event(client, f'Request rejected ({message})')
         handler.send_response(http.HTTPStatus.UNAUTHORIZED, message)
         handler.send_header('WWW-Authenticate', 'Basic realm="uploadserver"')
         handler.end_headers()
@@ -396,6 +423,7 @@ def serve_forever():
             return bind
     server_class = DualStackServer
     
+    log_event('SERVER', 'started')
     intercept_first_print()
     http.server.test(
         HandlerClass=handler_class,
@@ -428,6 +456,8 @@ def main():
     parser.add_argument('--client-certificate',
         help='Specify HTTPS client certificate to accept for mutual TLS '
         '[default: none]')
+    parser.add_argument('--log-file', type=str,
+        help='Specify a log file to record server events [default: stdout]')
     parser.add_argument('--basic-auth',
         help='Specify user:pass for basic authentication (downloads and '
         'uploads)')
@@ -435,6 +465,16 @@ def main():
         help='Specify user:pass for basic authentication (uploads only)')
     
     args = parser.parse_args()
+
     if not hasattr(args, 'directory'): args.directory = os.getcwd()
-    
+    if args.log_file:
+        try:
+            args.log_file = open(args.log_file, "a", encoding="utf-8")
+            # on exiting, http.server.test() calls sys.exit(0), which will flush the file content
+        except Exception as e:
+            print(f'Failed to open {args.log_file} as log file: {e}. Fall back to stdout.', file=sys.stderr)
+            args.log_file = sys.stdout
+    else:
+        args.log_file = sys.stdout
+
     serve_forever()
