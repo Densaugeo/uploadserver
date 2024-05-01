@@ -432,6 +432,22 @@ def serve_forever():
         bind=args.bind,
     )
 
+def publish_service(host, port):
+    from zeroconf import ServiceInfo, Zeroconf
+    domain = ".local"
+    host = host.lower()
+    if not host.endswith(domain):
+        host += domain
+    addresses = [i[4][0] for i in socket.getaddrinfo(socket.gethostname(), None)]
+    info = ServiceInfo("_http._tcp.local.",
+                       "Upload Server._http._tcp.local.",
+                       port=port,
+                       parsed_addresses=addresses,
+                       server=f"{host}.")
+    zeroconf = Zeroconf()
+    zeroconf.register_service(info)
+    # TODO: unregister server on server exit
+
 def main():
     global args
     
@@ -463,6 +479,8 @@ def main():
         'uploads)')
     parser.add_argument('--basic-auth-upload',
         help='Specify user:pass for basic authentication (uploads only)')
+    parser.add_argument('--host', '-H', type=str,
+        help='Host name used for zeroconf publishing')
     
     args = parser.parse_args()
 
@@ -476,5 +494,7 @@ def main():
             args.log_file = sys.stdout
     else:
         args.log_file = sys.stdout
+    if args.host:
+        publish_service(args.host, args.port)
 
     serve_forever()
