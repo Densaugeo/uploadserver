@@ -1,3 +1,25 @@
+# Modified uploadserver
+
+This repo is forked from [Densaugeo/uploadserver](https://github.com/Densaugeo/uploadserver). I add the following extended functionalities:
+
+- Allow clients to post free text to server via an HTML `textarea`.
+    - By default, the free text is printed to stdout at server side.
+    - You can specify a log file using the `--log-file YOUR_LOG_FILE` command line option.
+- Use zeroconf to publish server info.
+    - The purpose is to allow the server to be accessed by a short host name, instead of an IP address.
+    - First you should install [python-zeroconf](https://pypi.org/project/zeroconf/) . You don't need to install it if you do not use this functionality.
+    - Usage example: add `-H h` command line option, then you can access the server using `http://h.local:8000` (default port number).
+
+Screenshot:
+
+![Screenshot](./screenshot.png)
+
+--------------------------------------------
+
+Below is the original README, provided as is.
+
+--------------------------------------------
+
 # uploadserver
 
 Python's http.server extended to include a file upload page
