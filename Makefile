@@ -13,7 +13,8 @@ test-all: server.pem client.pem client.crt
 
 test: server.pem client.pem client.crt
 	rm -rf test-temp
-	. venv-$(PY)/bin/activate; PROTOCOL=$(PROTOCOL) VERBOSE=$(VERBOSE) $(PY) -u -m pytest $(PYTEST_ARGS) $(TEST)
+	PROTOCOL=$(PROTOCOL) VERBOSE=$(VERBOSE) venv-$(PY)/bin/python -u \
+		-m pytest $(PYTEST_ARGS) $(TEST)
 
 test-travis: server.pem client.pem client.crt
 	rm -rf test-temp
@@ -24,7 +25,8 @@ test-travis: server.pem client.pem client.crt
 install-dev:
 	chmod 775 test-all.sh
 	$(PY) -m venv venv-$(PY)
-	. venv-$(PY)/bin/activate; $(PY) -m pip install pytest requests
+	venv-$(PY)/bin/python -m pip install --upgrade pip
+	venv-$(PY)/bin/python -m pip install pytest requests
 
 server.pem:
 	openssl req -x509 -out server.pem -keyout server.pem -newkey rsa:3072 \
