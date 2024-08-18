@@ -27,10 +27,12 @@ install-dev:
 	. venv-$(PY)/bin/activate; $(PY) -m pip install pytest requests
 
 server.pem:
-	openssl req -x509 -out server.pem -keyout server.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=server'
+	openssl req -x509 -out server.pem -keyout server.pem -newkey rsa:3072 \
+		-nodes -sha256 -subj '/CN=server' -days 10000
 
 client.pem:
-	openssl req -x509 -out client.pem -keyout client.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=client'
+	openssl req -x509 -out client.pem -keyout client.pem -newkey rsa:3072 \
+		-nodes -sha256 -subj '/CN=client' -days 10000
 
 client.crt:
 	openssl x509 -in client.pem -out client.crt
