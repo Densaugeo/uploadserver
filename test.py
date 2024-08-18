@@ -335,7 +335,7 @@ def test_directory_listing_injections():
     assert res.status_code == 200
     assert int(res.headers['Content-Length']) == len(res.text)
     assert '<!-- Injected by uploadserver -->' in res.text
-    assert '<a href="upload">File upload</a>' in res.text
+    assert '<a href="/upload">File upload</a>' in res.text
 
 # Test this on the CGI variant too, to validate the funny inheritance pattern
 def test_directory_listing_injections_cgi():
@@ -345,7 +345,7 @@ def test_directory_listing_injections_cgi():
     assert res.status_code == 200
     assert int(res.headers['Content-Length']) == len(res.text)
     assert '<!-- Injected by uploadserver -->' in res.text
-    assert '<a href="upload">File upload</a>' in res.text
+    assert '<a href="/upload">File upload</a>' in res.text
 
 if PROTOCOL == 'HTTPS':
     def test_client_cert_valid():

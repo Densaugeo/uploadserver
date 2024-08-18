@@ -82,7 +82,8 @@ def get_directory_head_injection(theme):
 ''', 'utf-8')
 
 DIRECTORY_BODY_INJECTION = b'''<!-- Injected by uploadserver -->
-<a href="upload">File upload</a> (provided by uploadserver)
+<a href="/upload">File upload</a>
+(provided by uploadserver, all files go to server root)
 <hr>
 <!-- End injection by uploadserver -->
 '''
