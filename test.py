@@ -504,7 +504,7 @@ def spawn_server(port=None, cgi=False, allow_replace=False, directory=None,
     server_holder[0] = subprocess.Popen(args)
     
     # Wait for server to finish starting
-    for _ in range(10):
+    for _ in range(100):
         try:
             get('/', port=port or 8000,
                 cert=client_certificate[0] if client_certificate else None
