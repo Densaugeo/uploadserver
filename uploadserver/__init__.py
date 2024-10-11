@@ -339,7 +339,14 @@ def ssl_wrap(socket):
             f'root "{server_root}", exiting')
         sys.exit(3)
     
-    context.load_cert_chain(certfile=server_certificate)
+    try:
+        context.load_cert_chain(certfile=server_certificate)
+    except ssl.SSLError as e:
+        print(f'Unable to load certificate "{server_certificate}", exiting\n\n'
+            f'NOTE: Certificate must be a single file in .pem format. If you '
+            'have multiple certificate files, such as Let\'s Encrypt provides, '
+            'you can cat them together to get one file.')
+        sys.exit(4)
     
     if args.client_certificate:
         # Client certificate handling
