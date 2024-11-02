@@ -475,6 +475,18 @@ def test_http_basic_auth_example():
         with open('../test-files/basic-auth-example.txt') as f_expected:
             assert f_actual.read() == f_expected.read()
 
+def test_help_info_in_readme():
+    result = subprocess.run([
+            'python3', '-u', '-m', 'uploadserver', '-h',
+        ],
+        capture_output=True,
+    )
+    assert result.returncode == 0
+    
+    with open('../README.md', 'rb') as f:
+        assert result.stdout in f.read(), '--help output not found in ' + \
+            'README.md, does the readme need to be updated?'
+
 ###########
 # Helpers #
 ###########

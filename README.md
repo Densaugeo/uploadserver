@@ -109,6 +109,48 @@ curl -X POST https://localhost:8000/upload --insecure --cert client.pem -F files
 
 Note: This uses a self-signed server certificate which clients such as web browser and cURL will warn about. Most browsers will allow you to proceed after adding an exception, and cURL will work if given the -k/--insecure option. Using your own certificate from a certificate authority will avoid these warnings.
 
+## Available Options
+
+```
+usage: __main__.py [-h] [--cgi] [--allow-replace] [--bind ADDRESS]
+                   [--directory DIRECTORY] [--theme {light,auto,dark}]
+                   [--server-certificate SERVER_CERTIFICATE]
+                   [--client-certificate CLIENT_CERTIFICATE]
+                   [--basic-auth BASIC_AUTH]
+                   [--basic-auth-upload BASIC_AUTH_UPLOAD]
+                   [port]
+
+positional arguments:
+  port                  Specify alternate port [default: 8000]
+
+options:
+  -h, --help            show this help message and exit
+  --cgi                 Run as CGI Server
+  --allow-replace       Replace existing file if uploaded file has the same
+                        name. Auto rename by default.
+  --bind ADDRESS, -b ADDRESS
+                        Specify alternate bind address [default: all
+                        interfaces]
+  --directory DIRECTORY, -d DIRECTORY
+                        Specify alternative directory [default:current
+                        directory]
+  --theme {light,auto,dark}
+                        Specify a light or dark theme for the upload page
+                        [default: auto]
+  --server-certificate SERVER_CERTIFICATE, --certificate SERVER_CERTIFICATE, -c SERVER_CERTIFICATE
+                        Specify HTTPS server certificate to use [default:
+                        none]
+  --client-certificate CLIENT_CERTIFICATE
+                        Specify HTTPS client certificate to accept for mutual
+                        TLS [default: none]
+  --basic-auth BASIC_AUTH
+                        Specify user:pass for basic authentication (downloads
+                        and uploads)
+  --basic-auth-upload BASIC_AUTH_UPLOAD
+                        Specify user:pass for basic authentication (uploads
+                        only)
+```
+
 ## Breaking Changes in 5.0.0
 
 - Support for Python 3.6-7 dropped.
