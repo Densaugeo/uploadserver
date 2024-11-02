@@ -128,16 +128,15 @@ options:
   --cgi                 Run as CGI Server
   --allow-replace       Replace existing file if uploaded file has the same
                         name. Auto rename by default.
-  --bind ADDRESS, -b ADDRESS
-                        Specify alternate bind address [default: all
+  --bind, -b ADDRESS    Specify alternate bind address [default: all
                         interfaces]
-  --directory DIRECTORY, -d DIRECTORY
+  --directory, -d DIRECTORY
                         Specify alternative directory [default:current
                         directory]
   --theme {light,auto,dark}
                         Specify a light or dark theme for the upload page
                         [default: auto]
-  --server-certificate SERVER_CERTIFICATE, --certificate SERVER_CERTIFICATE, -c SERVER_CERTIFICATE
+  --server-certificate, --certificate, -c SERVER_CERTIFICATE
                         Specify HTTPS server certificate to use [default:
                         none]
   --client-certificate CLIENT_CERTIFICATE
