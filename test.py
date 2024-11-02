@@ -480,7 +480,7 @@ def test_http_basic_auth_example():
 if sys.version_info.major == 3 and sys.version_info.minor == 13:
     def test_help_info_in_readme():
         result = subprocess.run([
-                'python3.13', '-u', '-m', 'uploadserver', '-h',
+                sys.executable, '-u', '-m', 'uploadserver', '-h',
             ],
             capture_output=True,
             env={ 'COLUMNS': '80' },
@@ -504,7 +504,7 @@ def spawn_server(port=None, cgi=False, allow_replace=False, directory=None,
     server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None),
     client_certificate=None, basic_auth=None, basic_auth_upload=None,
 ):
-    args = ['python3', '-u', '-m', 'uploadserver']
+    args = [sys.executable, '-u', '-m', 'uploadserver']
     if port: args += [str(port)]
     if cgi: args += ['--cgi']
     if allow_replace: args += ['--allow-replace']
