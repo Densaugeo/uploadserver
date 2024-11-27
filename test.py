@@ -510,11 +510,20 @@ if sys.version_info.major == 3 and sys.version_info.minor == 13:
 ###########
 
 # Cannot be made into a fixture because fixture do not allow passing arguments
-# in Python 3.6
-def spawn_server(port=None, cgi=False, allow_replace=False, directory=None,
-    theme=None,
-    server_certificate=('../server.pem' if PROTOCOL == 'HTTPS' else None),
-    client_certificate=None, basic_auth=None, basic_auth_upload=None,
+# in Python 3.6 (so I could make it into a fixture now that 3.6 is long
+# dropped...). All of these arguments (except for the bool ones) are really
+# some_type | None, but Python 3.9 doesn't support |
+def spawn_server(
+    port: int = None,
+    cgi: bool = False,
+    allow_replace: bool = False,
+    directory: str = None,
+    theme: str = None,
+    server_certificate: str = ('../server.pem' if PROTOCOL == 'HTTPS'
+        else None),
+    client_certificate: str = None,
+    basic_auth: requests.auth.HTTPBasicAuth = None,
+    basic_auth_upload: requests.auth.HTTPBasicAuth = None,
 ):
     args = [sys.executable, '-u', '-m', 'uploadserver']
     if port: args += [str(port)]
@@ -546,14 +555,14 @@ def spawn_server(port=None, cgi=False, allow_replace=False, directory=None,
         raise Exception(f'Port {port or 8000} not responding. Did the server '
             'fail to start?')
 
-def get(path, port=8000, *args, **kwargs):
+def get(path: str, port: int = 8000, *args, **kwargs) -> requests.Response:
     return requests.get(f'{PROTOCOL.lower()}://127.0.0.1:{port}{path}',
         verify=False, *args, **kwargs)
 
-def post(path, port=8000, *args, **kwargs):
+def post(path: str, port: int = 8000, *args, **kwargs) -> requests.Response:
     return requests.post(f'{PROTOCOL.lower()}://127.0.0.1:{port}{path}',
         verify=False, *args, **kwargs)
 
-def put(path, port=8000, *args, **kwargs):
+def put(path: str, port: int = 8000, *args, **kwargs) -> requests.Response:
     return requests.put(f'{PROTOCOL.lower()}://127.0.0.1:{port}{path}',
         verify=False, *args, **kwargs)

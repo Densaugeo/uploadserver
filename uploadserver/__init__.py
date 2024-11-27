@@ -18,7 +18,7 @@ COLOR_SCHEME = {
     'dark': 'dark',
 }
 
-def get_upload_page(theme):
+def get_upload_page(theme: str) -> bytes:
     return bytes('''<!DOCTYPE html>
 <html>
 <head>
@@ -74,7 +74,7 @@ document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
 </script>
 </html>''', 'utf-8')
 
-def get_directory_head_injection(theme):
+def get_directory_head_injection(theme: str) -> bytes:
     return bytes('''<!-- Injected by uploadserver -->
 <meta name="viewport" content="width=device-width" />
 <meta name="color-scheme" content="''' + COLOR_SCHEME.get(theme) + '''">
@@ -88,7 +88,7 @@ DIRECTORY_BODY_INJECTION = b'''<!-- Injected by uploadserver -->
 <!-- End injection by uploadserver -->
 '''
 
-def send_upload_page(handler):
+def send_upload_page(handler: http.server.BaseHTTPRequestHandler):
     handler.send_response(http.HTTPStatus.OK)
     handler.send_header('Content-Type', 'text/html; charset=utf-8')
     handler.send_header('Content-Length', len(get_upload_page(args.theme)))
@@ -99,7 +99,7 @@ class PersistentFieldStorage(cgi.FieldStorage):
     # Override cgi.FieldStorage.make_file() method. Valid for Python 3.1 ~ 3.10.
     # Modified version of the original .make_file() method (base copied from
     # Python 3.10)
-    def make_file(self):
+    def make_file(self) -> object:
         if self._binary_file:
             return tempfile.NamedTemporaryFile(mode = 'wb+',
                 dir = args.directory, delete = False)
@@ -107,7 +107,9 @@ class PersistentFieldStorage(cgi.FieldStorage):
             return tempfile.NamedTemporaryFile("w+", dir = args.directory,
                 delete = False, encoding = self.encoding, newline = '\n')
 
-def auto_rename(path):
+# True argument/return type is str | pathlib.Path, but Python 3.9 doesn't
+# support |
+def auto_rename(path: pathlib.Path) -> pathlib.Path:
     if not os.path.exists(path):
         return path
     (base, ext) = os.path.splitext(path)
@@ -117,7 +119,8 @@ def auto_rename(path):
             return renamed_path
     raise FileExistsError(f'File {path} already exists.')
 
-def receive_upload(handler):
+def receive_upload(handler: http.server.BaseHTTPRequestHandler,
+) -> tuple[http.HTTPStatus, str]:
     result = (http.HTTPStatus.INTERNAL_SERVER_ERROR, 'Server error')
     name_conflict = False
     
@@ -153,7 +156,7 @@ def receive_upload(handler):
                 os.rename(source, destination)
             # class '_io.BytesIO', small file (< 1000B, in cgi.py), in-memory
             # buffer
-            else: 
+            else:
                 with open(destination, 'wb') as f:
                     f.write(field.file.read())
             handler.log_message('[Uploaded] "%s" --> %s', filename, destination)
@@ -162,7 +165,10 @@ def receive_upload(handler):
     
     return result
 
-def check_http_authentication_header(handler, auth):
+# True return type is tuple[bool, str | None], but Python 3.9 doesn't support |
+def check_http_authentication_header(
+handler: http.server.BaseHTTPRequestHandler, auth: str,
+) -> tuple[bool, str]:
     auth_header = handler.headers.get('Authorization')
     if auth_header is None:
         return (False, 'No credentials given')
@@ -186,7 +192,8 @@ def check_http_authentication_header(handler, auth):
     
     return (True, None)
 
-def check_http_authentication(handler):
+def check_http_authentication(handler: http.server.BaseHTTPRequestHandler
+) -> bool:
     """
     This function should be called in at the beginning of HTTP method handler.
     It validates Authorization header and sends back 401 response on failure.
@@ -251,7 +258,8 @@ class ListDirectoryInterception:
         content = content.replace(b'<ul>', DIRECTORY_BODY_INJECTION + b'<ul>')
         outputfile.write(content)
     
-    def list_directory(self, path):
+    # True argument type is str | pathlib.Path, but Python 3.9 doesn't support |
+    def list_directory(self, path: pathlib.Path) -> object:
         setattr(self, 'flush_headers', self.flush_headers_interceptor)
         setattr(self, 'copyfile', self.copyfile_interceptor)
         
@@ -323,7 +331,7 @@ def intercept_first_print():
             builtins.print = old_print
         builtins.print = new_print
 
-def ssl_wrap(socket):
+def ssl_wrap(socket: socket.socket) -> ssl.SSLSocket:
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     server_root = pathlib.Path(args.directory).resolve()
     
