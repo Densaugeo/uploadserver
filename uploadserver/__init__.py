@@ -156,7 +156,7 @@ def receive_upload(handler):
             else: 
                 with open(destination, 'wb') as f:
                     f.write(field.file.read())
-            handler.log_message(f'[Uploaded] "{filename}" --> {destination}')
+            handler.log_message('[Uploaded] "%s" --> %s', filename, destination)
             result = (http.HTTPStatus.NO_CONTENT, 'Some filename(s) changed '
                 'due to name conflict' if name_conflict else 'Files accepted')
     
@@ -219,7 +219,7 @@ def check_http_authentication(handler):
                     valid, message = check_http_authentication_header(handler, args.basic_auth_upload)
     
     if not valid:
-        handler.log_message(f'Request rejected ({message})')
+        handler.log_message('Request rejected (%s)', message)
         handler.send_response(http.HTTPStatus.UNAUTHORIZED, message)
         handler.send_header('WWW-Authenticate', 'Basic realm="uploadserver"')
         handler.end_headers()

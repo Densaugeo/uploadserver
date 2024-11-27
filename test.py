@@ -282,6 +282,18 @@ def test_large_upload():
     
     with open('a-larger-file') as f: assert f.read() == file_content
 
+def test_url_encoded_file_name():
+    spawn_server()
+    
+    file_content = 'A message from a strangely named file'
+    
+    res = post('/upload', files={
+        'files': ('url%2Eencoding.txt', file_content)
+    })
+    assert res.status_code == 204
+    
+    with open('url%2Eencoding.txt') as f: assert f.read() == file_content
+
 # Verify directory traversal attempts are contained within server folder
 def test_directory_traversal():
     spawn_server()
