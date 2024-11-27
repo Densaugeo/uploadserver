@@ -150,6 +150,10 @@ options:
                         only)
 ```
 
+## Breaking Changes in 6.0.0
+
+- Support for Python 3.8 dropped.
+
 ## Breaking Changes in 5.0.0
 
 - Support for Python 3.6-7 dropped.
