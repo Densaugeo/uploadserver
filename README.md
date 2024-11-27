@@ -9,8 +9,8 @@ Python's http.server extended to include a file upload page
 
 | Platform | Supported? | Notes |
 |-|-|-|
-| Python 3.8+ | Yes | Tested on 3.8 through 3.12 every release. |
-| Python 3.6-3.7 | No | Was supported by previous versions. |
+| Python 3.9+ | Yes | Tested on 3.9 through 3.14 every release. |
+| Python 3.6-3.8 | No | Was supported by previous versions. |
 | Python 3.5- | No | |
 | Linux | Yes | Tested on Fedora and Ubuntu every release. |
 | Windows | Yes | Occasional manual testing. Haven't noticed any obvious problems. |
