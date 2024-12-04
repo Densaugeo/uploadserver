@@ -1,5 +1,7 @@
-import pytest, os, requests, subprocess, time, urllib3, shutil, sys
+import os, subprocess, time, urllib3, shutil, sys
 from pathlib import Path
+
+import pytest, requests
 
 
 assert 'VERBOSE' in os.environ, '$VERBOSE envionment variable not set'
@@ -17,6 +19,9 @@ TEST_BASIC_AUTH_BAD_USER = requests.auth.HTTPBasicAuth('foo2', 'bar')
 TEST_BASIC_AUTH_BAD_PASS = requests.auth.HTTPBasicAuth('foo', 'bar2')
 TEST_BASIC_AUTH_2 = requests.auth.HTTPBasicAuth('another user', 'pass')
 
+pytestmark = pytest.mark.filterwarnings(
+    'ignore::urllib3.exceptions.InsecureRequestWarning')
+
 server_holder = [None]
 
 ####################
@@ -31,7 +36,6 @@ def setup_module():
 
 def setup_function():
     print()
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def teardown_function():
     if server_holder[0]: server_holder[0].terminate()
