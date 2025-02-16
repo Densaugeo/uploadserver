@@ -18,13 +18,13 @@ Python's http.server extended to include a file upload page
 
 ## Installation
 
-~~~
+~~~bash
 python3 -m pip install --user uploadserver
 ~~~
 
 ## Usage
 
-~~~
+~~~bash
 python3 -m uploadserver
 ~~~
 
@@ -35,18 +35,18 @@ After the server starts, the upload page is at /upload. For example, if the serv
 Warning: This is an upload server, and running it will allow uploads.
 
 Now supports uploading multiple files at once! Select multiple files in the web page's file selector, or upload with cURL:
-~~~
+~~~bash
 curl -X POST http://127.0.0.1:8000/upload -F 'files=@multiple-example-1.txt' -F 'files=@multiple-example-2.txt'
 ~~~
 
 ## Basic Authentication (downloads and uploads)
 
-~~~
+~~~bash
 python3 -m uploadserver --basic-auth hello:world
 ~~~
 
 Now you can upload with basic authentication. For example:
-~~~
+~~~bash
 curl -X POST http://127.0.0.1:8000/upload -F 'files=@basicauth-example.txt' -u hello:world
 ~~~
 
@@ -54,7 +54,7 @@ All requests without authentication will be rejected. Note that basic authentica
 
 ## Basic Authentication (uploads only)
 
-~~~
+~~~bash
 python3 -m uploadserver --basic-auth-upload hello:world
 ~~~
 
@@ -65,18 +65,18 @@ If both `--basic-auth` and `--basic-auth-upload` are specified, all requests wil
 ## Theme Option
 
 The upload page supports a dark mode for showing white text on black background. If no option is specified, the color scheme is chosen from the client’s browser’s preference (which typically matches their operating system’s setting, if light or dark mode is supported by the OS). To enforce the light or dark theme, the CLI parameter `--theme` can be used:
-~~~
+~~~bash
 python3 -m uploadserver --theme light
 ~~~
 or
-~~~
+~~~bash
 python3 -m uploadserver --theme dark
 ~~~
 
 ## HTTPS Option
 
 Run with HTTPS and without client authentication:
-~~~
+~~~bash
 # Generate self-signed server certificate
 openssl req -x509 -out server.pem -keyout server.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=server'
 
@@ -89,7 +89,7 @@ curl -X POST https://localhost:8000/upload --insecure -F files=@simple-example.t
 ~~~
 
 Run with HTTPS and with client authentication:
-~~~
+~~~bash
 # Generate self-signed server certificate
 openssl req -x509 -out server.pem -keyout server.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=server'
 
