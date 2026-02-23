@@ -1,4 +1,5 @@
 import http.server, http, pathlib, sys, argparse, ssl, os, builtins, tempfile
+import ipaddress
 import base64, binascii, functools, contextlib
 
 # Does not seem to do be used, but leaving this import out causes uploadserver
@@ -452,5 +453,14 @@ def main():
     
     args = parser.parse_args()
     if not hasattr(args, 'directory'): args.directory = os.getcwd()
+    if args.bind:
+        try:
+            ipaddress.ip_address(args.bind)
+        except ValueError:
+            parser.error(
+                'Invalid -b/--bind address. Expected an IP address (no port). '
+                'Example: -b 192.168.1.10 and pass the port as a separate '
+                'argument.'
+            )
     
     serve_forever()
