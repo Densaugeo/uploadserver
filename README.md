@@ -193,3 +193,5 @@ Thanks to marvinruder for work on the upload progress indicator, theme option, a
 Thanks to shuangye for finding an easy way to handle large file uploads, and improved handling of filename collisions.
 
 Thanks to abbbe for adding HTTP basic auth (has now replaced the token option).
+
+Thanks to SimarMugattarov, theo543, and poshul for minor updates.
