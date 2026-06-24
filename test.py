@@ -14,11 +14,6 @@ PROTOCOL = os.environ['PROTOCOL']
 assert PROTOCOL in ['HTTP', 'HTTPS'], 'Unknown $PROTOCOL: {}'.format(PROTOCOL)
 
 
-TEST_BASIC_AUTH = requests.auth.HTTPBasicAuth('foo', 'bar')
-TEST_BASIC_AUTH_BAD_USER = requests.auth.HTTPBasicAuth('foo2', 'bar')
-TEST_BASIC_AUTH_BAD_PASS = requests.auth.HTTPBasicAuth('foo', 'bar2')
-TEST_BASIC_AUTH_2 = requests.auth.HTTPBasicAuth('another user', 'pass')
-
 pytestmark = pytest.mark.filterwarnings(
     'ignore::urllib3.exceptions.InsecureRequestWarning')
 
@@ -89,35 +84,62 @@ def test_upload_put():
     with open('put-file') as f: assert f.read() == 'file-content'
 
 def test_basic_auth_get():
-    spawn_server(basic_auth=TEST_BASIC_AUTH)
+    spawn_server(basic_auth='foo:bar')
     
-    assert get('/', auth=TEST_BASIC_AUTH).status_code == 200
+    assert get('/', auth=('foo', 'bar')).status_code == 200
+
+def test_basic_auth_get_ascii():
+    # HTTP basic auth permits any ASCII character from 0x20 to 0x7f, except that
+    # colons are not permitted in usernames (but are permitted in passwords)
+    user = ' !"#$%&\'()*+,-./;<=>?@[\\]^_`{|}~\x7f'
+    pass_ = ' !"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~\x7f'
+
+    spawn_server(basic_auth=f'{user}:{pass_}')
+    
+    assert get('/', auth=(user.encode(), pass_.encode())).status_code == 200
+
+def test_basic_auth_get_cyrillic():
+    spawn_server(basic_auth='Хацуне Міку:Юнікод')
+    
+    assert get('/', auth=('Хацуне Міку'.encode(), 'Юнікод'.encode()))\
+        .status_code == 200
+
+def test_basic_auth_get_japanese():
+    spawn_server(basic_auth='初音ミク:ユニコード')
+    
+    assert get('/', auth=('初音ミク'.encode(), 'ユニコード'.encode()))\
+        .status_code == 200
+
+def test_basic_auth_get_unicode():
+    spawn_server(basic_auth='🙂:🌲→∫')
+    
+    assert get('/', auth=('🙂'.encode(), '🌲→∫'.encode())).status_code == 200
 
 def test_basic_auth_get_no_credentials():
-    spawn_server(basic_auth=TEST_BASIC_AUTH)
+    spawn_server(basic_auth='foo:bar')
     
     assert get('/').status_code == 401
 
 def test_basic_auth_get_bad_user():
-    spawn_server(basic_auth=TEST_BASIC_AUTH)
+    spawn_server(basic_auth='foo:bar')
     
-    assert get('/', auth=TEST_BASIC_AUTH_BAD_USER).status_code == 401
+    assert get('/', auth=('foo2', 'bar')).status_code == 401
 
 def test_basic_auth_get_bad_pass():
-    spawn_server(basic_auth=TEST_BASIC_AUTH)
+    spawn_server(basic_auth='foo:bar')
     
-    assert get('/', auth=TEST_BASIC_AUTH_BAD_PASS).status_code == 401
+    assert get('/', auth=('foo', 'bar2')).status_code == 401
 
 def test_basic_auth_get_upload_only():
-    spawn_server(basic_auth_upload=TEST_BASIC_AUTH)
+    spawn_server(basic_auth_upload='foo:bar')
     
     assert get('/').status_code == 200
 
 @pytest.mark.parametrize('condition', ['basic_auth', 'basic_auth_upload'])
 def test_basic_auth_post(condition):
-    spawn_server(**{ condition: TEST_BASIC_AUTH })
+    spawn_server(**{ condition: 'foo:bar' })
     
-    assert post('/upload', auth=TEST_BASIC_AUTH, files={
+    assert post('/upload', auth=('foo', 'bar'), files={
         'files': (condition, 'file-content'),
     }).status_code == 204
     
@@ -125,7 +147,7 @@ def test_basic_auth_post(condition):
 
 @pytest.mark.parametrize('condition', ['basic_auth', 'basic_auth_upload'])
 def test_basic_auth_post_no_credentials(condition):
-    spawn_server(**{ condition: TEST_BASIC_AUTH })
+    spawn_server(**{ condition: 'foo:bar' })
     
     assert post('/upload', files={
         'files': ('unauth-file', 'file-content'),
@@ -135,9 +157,9 @@ def test_basic_auth_post_no_credentials(condition):
 
 @pytest.mark.parametrize('condition', ['basic_auth', 'basic_auth_upload'])
 def test_basic_auth_post_bad_user(condition):
-    spawn_server(**{ condition: TEST_BASIC_AUTH })
+    spawn_server(**{ condition: 'foo:bar' })
     
-    assert post('/upload', auth=TEST_BASIC_AUTH_BAD_USER, files={
+    assert post('/upload', auth=('foo2', 'bar'), files={
         'files': ('unauth-file', 'file-content'),
     }).status_code == 401
     
@@ -145,16 +167,16 @@ def test_basic_auth_post_bad_user(condition):
     
 @pytest.mark.parametrize('condition', ['basic_auth', 'basic_auth_upload'])
 def test_basic_auth_post_bad_pass(condition):
-    spawn_server(**{ condition: TEST_BASIC_AUTH })
+    spawn_server(**{ condition: 'foo:bar' })
     
-    assert post('/upload', auth=TEST_BASIC_AUTH_BAD_PASS, files={
+    assert post('/upload', auth=('foo', 'bar2'), files={
         'files': ('unauth-file', 'file-content'),
     }).status_code == 401
     
     assert not Path('unauth-file').exists()
 
 def test_basic_auth_no_remnants():
-    spawn_server(basic_auth=TEST_BASIC_AUTH)
+    spawn_server(basic_auth='foo:bar')
     
     with open('../test-files/token-remnant-bug.txt') as f:
         # 'files' option is used for both files and other form data
@@ -168,29 +190,26 @@ def test_basic_auth_no_remnants():
     # Resolved by adding HTTP basic auth, which is not susceptible to this
     assert next(Path('.').glob('tmp*'), None) is None
 
-@pytest.mark.parametrize('auth', [TEST_BASIC_AUTH, TEST_BASIC_AUTH_2])
+@pytest.mark.parametrize('auth', [('foo', 'bar'), ('another user', 'pass')])
 def test_dual_basic_auth(auth):
-    spawn_server(basic_auth=TEST_BASIC_AUTH,
-        basic_auth_upload=TEST_BASIC_AUTH_2)
+    spawn_server(basic_auth='foo:bar', basic_auth_upload='another user:pass')
     
     res = get('/', auth=auth)
     assert res.status_code == 200
 
 def test_dual_basic_auth_upload():
-    spawn_server(basic_auth=TEST_BASIC_AUTH,
-        basic_auth_upload=TEST_BASIC_AUTH_2)
+    spawn_server(basic_auth='foo:bar', basic_auth_upload='another user:pass')
     
-    assert post('/upload', auth=TEST_BASIC_AUTH_2, files={
+    assert post('/upload', auth=('another user', 'pass'), files={
         'files': ('dual-auth', 'dual-auth-content'),
     }).status_code == 204
     
     with open('dual-auth') as f: assert f.read() == 'dual-auth-content'
 
 def test_dual_basic_auth_upload_wrong_login():
-    spawn_server(basic_auth=TEST_BASIC_AUTH,
-        basic_auth_upload=TEST_BASIC_AUTH_2)
+    spawn_server(basic_auth='foo:bar', basic_auth_upload='another user:pass')
     
-    assert post('/upload', auth=TEST_BASIC_AUTH, files={
+    assert post('/upload', auth=('foo', 'bar'), files={
         'files': ('unauth-file', 'file-content'),
     }).status_code == 401
     
@@ -475,7 +494,7 @@ if PROTOCOL == 'HTTPS':
 
 # Verify example curl command with HTTP basic auth works
 def test_http_basic_auth_example():
-    spawn_server(basic_auth=requests.auth.HTTPBasicAuth('hello', 'world'))
+    spawn_server(basic_auth='hello:world')
     
     result = subprocess.run([
             'curl', '-X', 'POST', f'{PROTOCOL.lower()}://localhost:8000/upload',
@@ -526,8 +545,8 @@ def spawn_server(
     server_certificate: str = ('../server.pem' if PROTOCOL == 'HTTPS'
         else None),
     client_certificate: str = None,
-    basic_auth: requests.auth.HTTPBasicAuth = None,
-    basic_auth_upload: requests.auth.HTTPBasicAuth = None,
+    basic_auth: str = None,
+    basic_auth_upload: str = None,
 ):
     args = [sys.executable, '-u', '-m', 'uploadserver']
     if port: args += [str(port)]
@@ -539,10 +558,9 @@ def spawn_server(
     if client_certificate: args += ['--client-certificate',
         client_certificate[1]]
     if basic_auth:
-        args += ['--basic-auth', f'{basic_auth.username}:{basic_auth.password}']
+        args += ['--basic-auth', basic_auth]
     if basic_auth_upload:
-        args += ['--basic-auth-upload',
-            f'{basic_auth_upload.username}:{basic_auth_upload.password}']
+        args += ['--basic-auth-upload', basic_auth_upload]
     
     server_holder[0] = subprocess.Popen(args)
     

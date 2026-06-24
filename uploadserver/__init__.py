@@ -186,8 +186,8 @@ handler: http.server.BaseHTTPRequestHandler, auth: str,
     except binascii.Error:
         return (False, 'Credentials incorrectly formatted')
     
-    http_username, http_password = http_username_password.split(':', 2)
-    args_username, args_password = auth.split(':', 2)
+    http_username, http_password = http_username_password.split(':', 1)
+    args_username, args_password = auth.split(':', 1)
     if http_username != args_username: return (False, 'Bad username')
     if http_password != args_password: return (False, 'Bad password')
     
