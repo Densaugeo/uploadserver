@@ -1,5 +1,5 @@
 import http.server, http, pathlib, sys, argparse, ssl, os, builtins, tempfile
-import ipaddress
+import ipaddress, hmac
 import base64, binascii, functools, contextlib
 
 # Does not seem to do be used, but leaving this import out causes uploadserver
@@ -168,7 +168,7 @@ def receive_upload(handler: http.server.BaseHTTPRequestHandler,
 
 # True return type is tuple[bool, str | None], but Python 3.9 doesn't support |
 def check_http_authentication_header(
-handler: http.server.BaseHTTPRequestHandler, auth: str,
+handler: http.server.BaseHTTPRequestHandler, auth: tuple[bytes, bytes],
 ) -> tuple[bool, str]:
     auth_header = handler.headers.get('Authorization')
     if auth_header is None:
@@ -187,9 +187,11 @@ handler: http.server.BaseHTTPRequestHandler, auth: str,
         return (False, 'Credentials incorrectly formatted')
     
     http_username, http_password = http_username_password.split(':', 1)
-    args_username, args_password = auth.split(':', 1)
-    if http_username != args_username: return (False, 'Bad username')
-    if http_password != args_password: return (False, 'Bad password')
+    args_username, args_password = auth
+    if not hmac.compare_digest(bytes(http_username, 'utf8'), args_username):
+        return (False, 'Bad username')
+    if not hmac.compare_digest(bytes(http_password, 'utf8'), args_password):
+        return (False, 'Bad password')
     
     return (True, None)
 
@@ -206,12 +208,12 @@ def check_http_authentication(handler: http.server.BaseHTTPRequestHandler
             return True
         
         # If only --basic-auth is supplied, it's used for all requests
-        valid, message = check_http_authentication_header(handler, args.basic_auth)
+        valid, message = check_http_authentication_header(handler, basic_auth)
     else:
         # If --basic-auth-upload is supplied, it's always required for /upload
         if handler.path == '/upload':
             valid, message = check_http_authentication_header(handler,
-                args.basic_auth_upload)
+                basic_auth_upload)
         else:
             # For paths outside /upload, no auth is required when --basic-auth
             # is not supplied
@@ -221,10 +223,12 @@ def check_http_authentication(handler: http.server.BaseHTTPRequestHandler
             # For paths outise /upload, if both auths are supplied both are
             # accepted
             else:
-                valid, message = check_http_authentication_header(handler, args.basic_auth)
+                valid, message = check_http_authentication_header(handler,
+                    basic_auth)
                 
                 if not valid:
-                    valid, message = check_http_authentication_header(handler, args.basic_auth_upload)
+                    valid, message = check_http_authentication_header(handler,
+                        basic_auth_upload)
     
     if not valid:
         handler.log_message('Request rejected (%s)', message)
@@ -422,7 +426,7 @@ def serve_forever():
     )
 
 def main():
-    global args
+    global args, basic_auth, basic_auth_upload
     
     parser = argparse.ArgumentParser()
     parser.add_argument('port', type=int, default=8000, nargs='?',
@@ -462,5 +466,14 @@ def main():
                 'Example: -b 192.168.1.10 and pass the port as a separate '
                 'argument.'
             )
+    
+    # Cache bytes() conversions of auth values, to prevent leaking information
+    # via timing (issue #53)
+    if args.basic_auth:
+        username, password = args.basic_auth.split(':', 1)
+        basic_auth = (bytes(username, 'utf8'), bytes(password, 'utf8'))
+    if args.basic_auth_upload:
+        username, password = args.basic_auth_upload.split(':', 1)
+        basic_auth_upload = (bytes(username, 'utf8'), bytes(password, 'utf8'))
     
     serve_forever()
