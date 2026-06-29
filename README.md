@@ -180,6 +180,11 @@ options:
 - File field in upload form renamed from `file_1` to `files`, to reflect support for multiple file upload. Scripts using cURL will need to be upadted with the new field name.
 - Successful uploads now respond with 204 No Content instead of 200 OK, so that cURL will not default to printing the upload page at the terminal.
 
+## Security Issues
+
+- Patched in `6.0.3`: Timing side channel. Introduced in `1.0.0`. Unpatched versions using the `--basic-auth`, `--basic-auth-upload`, or `--token` options are vulnerable to revealing password information through response timing.
+- Patched in `6.0.2`: DoS vulnerability. Introduced in `4.1.0`. Unpatched versions using the `--basic-auth` or `--basic-auth-upload` options generate stack traces in response to certain requests, which could be used to pollute logs or exhaust storage.
+
 ## Acknowledgements
 
 Much of `main()` was copied from Python's `http.server`.
@@ -193,5 +198,7 @@ Thanks to marvinruder for work on the upload progress indicator, theme option, a
 Thanks to shuangye for finding an easy way to handle large file uploads, and improved handling of filename collisions.
 
 Thanks to abbbe for adding HTTP basic auth (has now replaced the token option).
+
+Thanks to 0xLordMahesh for reporting the timing side channel and DoS vulnerabilities patched in 6.0.2 and 6.0.3.
 
 Thanks to SimarMugattarov, theo543, and poshul for minor updates.
