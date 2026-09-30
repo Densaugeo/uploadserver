@@ -37,6 +37,8 @@ def get_upload_page(theme: str) -> bytes:
 </form>
 <p id="task"></p>
 <p id="status"></p>
+<hr />
+<a href="/">File Download</a>
 </body>
 <script>
 document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
