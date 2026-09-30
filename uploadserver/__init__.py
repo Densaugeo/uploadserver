@@ -29,6 +29,10 @@ def get_upload_page(theme: str) -> bytes:
 </head>
 <body>
 <h1>File Upload</h1>
+<hr />
+<a href="/">File Download</a> (go back to the download page)
+<hr />
+<br />
 <form action="upload" method="POST" enctype="multipart/form-data">
 <input name="files" type="file" multiple />
 <br />
@@ -38,7 +42,6 @@ def get_upload_page(theme: str) -> bytes:
 <p id="task"></p>
 <p id="status"></p>
 <hr />
-<a href="/">File Download</a>
 </body>
 <script>
 document.getElementsByTagName('form')[0].addEventListener('submit', async e => {
