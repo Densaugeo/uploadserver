@@ -30,9 +30,8 @@ def get_upload_page(theme: str) -> bytes:
 <body>
 <h1>File Upload</h1>
 <hr />
-<a href="/">File Download</a> (go back to the download page)
+<a href="/">File Download</a> (back to download page)
 <hr />
-<br />
 <form action="upload" method="POST" enctype="multipart/form-data">
 <input name="files" type="file" multiple />
 <br />
@@ -88,7 +87,7 @@ def get_directory_head_injection(theme: str) -> bytes:
 ''', 'utf-8')
 
 DIRECTORY_BODY_INJECTION = b'''<!-- Injected by uploadserver -->
-<a href="/upload">File upload</a>
+<a href="/upload">File Upload</a>
 (provided by uploadserver, all files go to server root)
 <hr>
 <!-- End injection by uploadserver -->
