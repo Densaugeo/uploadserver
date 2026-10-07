@@ -201,4 +201,4 @@ Thanks to abbbe for adding HTTP basic auth (has now replaced the token option).
 
 Thanks to 0xLordMahesh for reporting the timing side channel and DoS vulnerabilities patched in 6.0.2 and 6.0.3.
 
-Thanks to SimarMugattarov, theo543, and poshul for minor updates.
+Thanks to SimarMugattarov, theo543, poshul, and OnkarRuikar for minor updates.
