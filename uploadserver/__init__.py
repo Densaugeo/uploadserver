@@ -29,17 +29,16 @@ def get_upload_page(theme: str) -> bytes:
 </head>
 <body>
 <h1>File Upload</h1>
-<hr />
-<a href="/">File Download</a> (back to download page)
-<hr />
 <form action="upload" method="POST" enctype="multipart/form-data">
 <input name="files" type="file" multiple />
 <br />
 <br />
-<input type="submit" />
+<input type="submit" value="Upload" />
 </form>
 <p id="task"></p>
 <p id="status"></p>
+<hr />
+<a href="/">File Download</a> (back to download page)
 <hr />
 </body>
 <script>
