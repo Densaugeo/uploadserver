@@ -4,12 +4,12 @@ from pathlib import Path
 import pytest, requests
 
 
-assert 'VERBOSE' in os.environ, '$VERBOSE envionment variable not set'
+assert 'VERBOSE' in os.environ, '$VERBOSE environment variable not set'
 VERBOSE = os.environ['VERBOSE']
 assert VERBOSE in ['0', '1'], '$VERBOSE must be 0 or 1'
 VERBOSE = int(VERBOSE)
 
-assert 'PROTOCOL' in os.environ, '$PROTOCOL envionment variable not set'
+assert 'PROTOCOL' in os.environ, '$PROTOCOL environment variable not set'
 PROTOCOL = os.environ['PROTOCOL']
 assert PROTOCOL in ['HTTP', 'HTTPS'], 'Unknown $PROTOCOL: {}'.format(PROTOCOL)
 
@@ -149,9 +149,13 @@ def test_basic_auth_post(condition):
 def test_basic_auth_post_no_credentials(condition):
     spawn_server(**{ condition: 'foo:bar' })
     
-    assert post('/upload', files={
-        'files': ('unauth-file', 'file-content'),
-    }).status_code == 401
+    try:
+        assert post('/upload', files={
+            'files': ('unauth-file', 'file-content'),
+        }).status_code == 401
+    except requests.exceptions.ChunkedEncodingError as e:
+        if not is_broken_pipe_error(e):
+            raise e
     
     assert not Path('unauth-file').exists()
 
@@ -159,9 +163,13 @@ def test_basic_auth_post_no_credentials(condition):
 def test_basic_auth_post_bad_user(condition):
     spawn_server(**{ condition: 'foo:bar' })
     
-    assert post('/upload', auth=('foo2', 'bar'), files={
-        'files': ('unauth-file', 'file-content'),
-    }).status_code == 401
+    try:
+        assert post('/upload', auth=('foo2', 'bar'), files={
+            'files': ('unauth-file', 'file-content'),
+        }).status_code == 401
+    except requests.exceptions.ChunkedEncodingError as e:
+        if not is_broken_pipe_error(e):
+            raise e
     
     assert not Path('unauth-file').exists()
     
@@ -169,9 +177,13 @@ def test_basic_auth_post_bad_user(condition):
 def test_basic_auth_post_bad_pass(condition):
     spawn_server(**{ condition: 'foo:bar' })
     
-    assert post('/upload', auth=('foo', 'bar2'), files={
-        'files': ('unauth-file', 'file-content'),
-    }).status_code == 401
+    try:
+        assert post('/upload', auth=('foo', 'bar2'), files={
+            'files': ('unauth-file', 'file-content'),
+        }).status_code == 401
+    except requests.exceptions.ChunkedEncodingError as e:
+        if not is_broken_pipe_error(e):
+            raise e
     
     assert not Path('unauth-file').exists()
 
@@ -179,10 +191,13 @@ def test_basic_auth_no_remnants():
     spawn_server(basic_auth='foo:bar')
     
     with open('../test-files/token-remnant-bug.txt') as f:
-        # 'files' option is used for both files and other form data
-        assert post('/upload', files={
-            'files': ('token-remnant-bug.txt', f.read()),
-        }).status_code == 401
+        try:
+            assert post('/upload', files={
+                'files': ('token-remnant-bug.txt', f.read()),
+            }).status_code == 401
+        except requests.exceptions.ChunkedEncodingError as e:
+            if not is_broken_pipe_error(e):
+                raise e
     
     assert not Path('token-remnant-bug.txt').exists()
     
@@ -209,9 +224,13 @@ def test_dual_basic_auth_upload():
 def test_dual_basic_auth_upload_wrong_login():
     spawn_server(basic_auth='foo:bar', basic_auth_upload='another user:pass')
     
-    assert post('/upload', auth=('foo', 'bar'), files={
-        'files': ('unauth-file', 'file-content'),
-    }).status_code == 401
+    try:
+        assert post('/upload', auth=('foo', 'bar'), files={
+            'files': ('unauth-file', 'file-content'),
+        }).status_code == 401
+    except requests.exceptions.ChunkedEncodingError as e:
+        if not is_broken_pipe_error(e):
+            raise e
     
     assert not Path('unauth-file').exists()
 
@@ -425,7 +444,7 @@ if PROTOCOL == 'HTTPS':
         shutil.copyfile('../server.pem', 'server.pem')
         
         result = subprocess.run(
-            ['python', '-m', 'uploadserver', '-c', 'server.pem'],
+            [sys.executable, '-m', 'uploadserver', '-c', 'server.pem'],
             stdout=None if VERBOSE else subprocess.DEVNULL,
             stderr=None if VERBOSE else subprocess.DEVNULL,
         )
@@ -588,3 +607,22 @@ def post(path: str, port: int = 8000, *args, **kwargs) -> requests.Response:
 def put(path: str, port: int = 8000, *args, **kwargs) -> requests.Response:
     return requests.put(f'{PROTOCOL.lower()}://127.0.0.1:{port}{path}',
         verify=False, *args, **kwargs)
+
+def is_broken_pipe_error(e: Exception) -> bool:
+    '''
+    When a POST request with a payload is rejected (such as for auth errors) and
+    the server closes the connection without reading the payload. the response
+    may or may not arrive before the connection closes. If the response does not
+    arrive in time requests will report a broken pipe error (in a somewhat
+    convoluted error object). This function examines the convoluted error object
+    and determines if the error is a broken pipe.
+    
+    Due to TCP and HTTP spec requirements, there is no reliable way to send an
+    informative error and ensure it is delivered without reading the payload and
+    opening a DoS vulnerability. Some clients use HTTP 100 continue, but
+    requests doesn't and http.server only supports it if HTTP 1.1 support is
+    enabled (which creates another DoS vulnerability due to naive keep-alive
+    handling).
+    '''
+    return type(e.__context__) == urllib3.exceptions.ProtocolError \
+        and type(e.__context__.__context__) == BrokenPipeError
